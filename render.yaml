@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: appshell
+    runtime: docker
+    plan: free
+    healthCheckPath: /ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: MAIL_MODE
+        value: resend
+      - key: MAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false

@@ -1,0 +1,20 @@
+{
+  "name": "appshell",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "check": "npm run check -w apps/web",
+    "test": "npm run test -w apps/web",
+    "test:e2e": "npm run test:e2e -w apps/web",
+    "generate:api": "docker compose run --rm api cargo run --bin export-openapi > openapi.json && npm run generate:api -w apps/web"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

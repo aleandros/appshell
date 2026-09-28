@@ -1,0 +1,35 @@
+# Dependencies and build output (retain package-lock.json and Cargo.lock)
+node_modules/
+dist/
+target/
+*.tsbuildinfo
+
+# Local configuration and secrets; keep sanitized examples
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Tests, coverage, and tool caches
+playwright-report/
+test-results/
+blob-report/
+coverage/
+.vite/
+.vitest/
+.cache/
+
+# Local logs, database backups, and temporary files
+*.log
+*.pid
+*.dump
+/backups/
+/tmp/
+
+# OS and editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+*~

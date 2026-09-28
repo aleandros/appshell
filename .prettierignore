@@ -1,0 +1,6 @@
+package-lock.json
+openapi.json
+apps/web/src/lib/api.generated.ts
+node_modules
+dist
+target

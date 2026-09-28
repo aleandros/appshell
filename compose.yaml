@@ -1,0 +1,38 @@
+name: appshell
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: appshell
+      POSTGRES_USER: appshell
+      POSTGRES_PASSWORD: appshell
+    ports: ['127.0.0.1:5433:5432']
+    volumes: ['postgres:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U appshell']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: appshell-dev
+    working_dir: /app
+    command: cargo run --bin appshell-api
+    environment:
+      DATABASE_URL: postgres://appshell:appshell@db:5432/appshell
+      APP_URL: http://localhost:5173
+      MAIL_MODE: console
+      RUST_LOG: appshell_api=info,tower_http=info
+    ports: ['127.0.0.1:8080:8080']
+    volumes:
+      - .:/app
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/app/target
+    depends_on:
+      db: { condition: service_healthy }
+volumes:
+  postgres:
+  cargo-registry:
+  cargo-target:

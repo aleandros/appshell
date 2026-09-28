@@ -1,0 +1,163 @@
+@import 'tailwindcss';
+@import './tokens.css';
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-danger-muted: var(--danger-muted);
+  --font-sans: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  button,
+  a,
+  input,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  a,
+  select {
+    touch-action: manipulation;
+  }
+  button:not(:disabled),
+  select {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 4px;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  input,
+  select {
+    min-width: 0;
+  }
+}
+@layer components {
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors;
+  }
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary-hover;
+  }
+  .btn-secondary {
+    @apply border bg-surface hover:bg-surface-muted;
+  }
+  .btn-quiet {
+    @apply text-muted hover:bg-surface-muted hover:text-foreground;
+  }
+  .card {
+    @apply rounded-2xl border bg-surface;
+    box-shadow: var(--shadow);
+  }
+  .input {
+    @apply block w-full rounded-xl border bg-surface px-3.5 py-3 text-sm placeholder:text-muted focus:border-primary focus:outline-primary;
+  }
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[.18em] text-muted;
+  }
+  .page-title {
+    @apply text-3xl font-semibold tracking-tight sm:text-4xl;
+  }
+  .nav-item {
+    @apply flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-muted transition-colors hover:bg-surface-muted hover:text-foreground;
+  }
+  .nav-item[data-status='active'] {
+    @apply bg-accent text-accent-foreground;
+  }
+  .label {
+    @apply mb-2 block text-sm font-medium;
+  }
+}
+.botanical {
+  position: relative;
+  width: 220px;
+  height: 230px;
+}
+.botanical .stem {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: 3px;
+  height: 175px;
+  background: #698c6a;
+  transform: rotate(12deg);
+}
+.botanical .leaf {
+  position: absolute;
+  width: 74px;
+  height: 108px;
+  border-radius: 80% 0 80% 0;
+  background: #9ebc91;
+  box-shadow: inset -1px -1px 0 #698c6a;
+}
+.botanical .leaf:nth-child(2) {
+  left: 48px;
+  top: 12px;
+  transform: rotate(-24deg);
+  background: #b6caa7;
+}
+.botanical .leaf:nth-child(3) {
+  left: 116px;
+  top: 50px;
+  transform: rotate(24deg) scale(0.85);
+}
+.botanical .leaf:nth-child(4) {
+  left: 37px;
+  top: 105px;
+  transform: rotate(-72deg) scale(0.68);
+  background: #769f77;
+}
+.botanical .pot {
+  position: absolute;
+  width: 78px;
+  height: 65px;
+  bottom: -12px;
+  left: 80px;
+  background: #e6deca;
+  border-radius: 3px 3px 25px 25px;
+  transform: perspective(120px) rotateX(-12deg);
+}
+.grid-paper {
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
