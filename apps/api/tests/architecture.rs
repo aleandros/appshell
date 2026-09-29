@@ -85,6 +85,7 @@ fn violations(path: &str, source: &str, repository_methods: &BTreeSet<String>) -
     let mut denied = vec!["include", "include_str", "include_bytes"];
     if !infrastructure {
         denied.extend([
+            "lettre",
             "diesel",
             "diesel_migrations",
             "sql_query",
@@ -225,6 +226,7 @@ fn rules_reject_bypasses_and_allow_literals() {
 
     for (path, source) in [
         ("http/invalid.rs", "use diesel as storage;"),
+        ("contexts/identity/service.rs", "use lettre::Message;"),
         (
             "http/invalid.rs",
             "fn f() { let pool = state.pool.clone(); }",

@@ -51,6 +51,25 @@ export function inspectSource(file, source) {
     else errors.push('module imports must have literal paths');
   }
   function visit(node) {
+    if (
+      !file.startsWith('shared-ui/') &&
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
+    ) {
+      if (['button', 'input', 'select', 'textarea'].includes(node.tagName.getText(tree)))
+        errors.push('use controls from @appshell/ui instead of raw form elements');
+      for (const attr of node.attributes.properties) {
+        if (
+          ts.isJsxAttribute(attr) &&
+          attr.name.getText(tree) === 'className' &&
+          attr.initializer
+        ) {
+          const text = attr.initializer.getText(tree);
+          if (/\b(?:btn(?:-primary|-secondary|-quiet)?|card|input|nav-item)\b/.test(text))
+            errors.push('use shared component props instead of private design-system classes');
+        }
+      }
+    }
+
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
       if (node.moduleSpecifier) record(node.moduleSpecifier);
     }
@@ -143,6 +162,12 @@ export function check(root = path.resolve('apps/web')) {
         parsed.options,
         ts.sys,
       ).resolvedModule;
+
+      if (specifier.startsWith('@appshell/ui/') && specifier !== '@appshell/ui/styles.css') {
+        errors.push(`${file}: use the public @appshell/ui entrypoint`);
+        continue;
+      }
+      if (specifier === '@appshell/ui' || specifier === '@appshell/ui/styles.css') continue;
       if (!resolved || resolved.isExternalLibraryImport) continue; // tsc validates unresolved imports.
       const target = path.relative(src, resolved.resolvedFileName).split(path.sep).join('/');
       if (target.startsWith('../')) {
@@ -154,6 +179,40 @@ export function check(root = path.resolve('apps/web')) {
       edges.push(target);
     }
     graph.set(file, edges);
+  }
+
+  // The workspace library has no dependency on app routing, data fetching, or brand config.
+  const uiRoot = path.resolve(root, '../../packages/ui/src');
+  for (const absolute of files(uiRoot)) {
+    const relative = path.relative(uiRoot, absolute).split(path.sep).join('/');
+    const source = fs.readFileSync(absolute, 'utf8');
+    const inspected = inspectSource(`shared-ui/${relative}`, source);
+    errors.push(...inspected.errors.map((error) => `@appshell/ui/${relative}: ${error}`));
+    const edges = [];
+    for (const specifier of inspected.imports) {
+      const allowed = ['react', 'clsx', 'lucide-react'];
+      if (relative.endsWith('.stories.tsx'))
+        allowed.push('@storybook/react-vite', 'storybook/test');
+      if (allowed.includes(specifier)) continue;
+      if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+        errors.push(
+          `@appshell/ui/${relative}: dependency ${specifier} is not a presentation dependency`,
+        );
+        continue;
+      }
+      const resolved = ts.resolveModuleName(
+        specifier,
+        absolute,
+        parsed.options,
+        ts.sys,
+      ).resolvedModule;
+      if (!resolved) continue;
+      const target = path.relative(uiRoot, resolved.resolvedFileName).split(path.sep).join('/');
+      if (target.startsWith('../'))
+        errors.push(`@appshell/ui/${relative}: imports outside the library are forbidden`);
+      else edges.push(`shared-ui/${target}`);
+    }
+    graph.set(`shared-ui/${relative}`, edges);
   }
   errors.push(...cycles(graph).map((cycle) => `dependency cycle: ${cycle}`));
   return errors;

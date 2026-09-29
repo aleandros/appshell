@@ -39,7 +39,7 @@ pub async fn signup(state: AppState, input: Signup) -> Result<(String, Session)>
 
             let user = c.identity_create_user(id, &email, name, hash)?;
             crate::contexts::organizations::create_for_owner(c, id, organization)?;
-            mail::action(c, id, &email, "verify", None, &state.config.app_url)?;
+            mail::action(c, id, &email, "verify", None, &state.config)?;
             new_session(c, id, &session_token)?;
             session(c, user)
         })
@@ -108,7 +108,7 @@ pub async fn forgot(state: AppState, input: EmailInput) -> Result<Message> {
         c.transaction(|c| {
             let user = c.identity_password_user(&email)?;
             if let Some(user) = user {
-                mail::action(c, user.id, &email, "reset", None, &state.config.app_url)?;
+                mail::action(c, user.id, &email, "reset", None, &state.config)?;
             }
             Ok(())
         })
@@ -153,14 +153,7 @@ pub async fn resend(state: AppState, user: User) -> Result<Message> {
         security::rate_limit(c, &format!("verify:{}", user.id), 5)?;
         if user.email_verified_at.is_none() {
             c.transaction(|c| {
-                mail::action(
-                    c,
-                    user.id,
-                    &user.email,
-                    "verify",
-                    None,
-                    &state.config.app_url,
-                )
+                mail::action(c, user.id, &user.email, "verify", None, &state.config)
             })?;
         }
         Ok(())
@@ -195,14 +188,15 @@ pub async fn change_password(
 pub async fn change_email(state: AppState, user: User, input: ChangeEmail) -> Result<Message> {
     security::verified(&user)?;
     let email = appshell_domain::identity::email(&input.email)?;
-    repositories::run(state.pool,move |c| {
-        security::rate_limit(c,&format!("credentials:{}",user.id),10)?;
+    repositories::run(state.pool, move |c| {
+        security::rate_limit(c, &format!("credentials:{}", user.id), 10)?;
         c.transaction(|c| {
-            check_password(c,user.id,&input.password)?;
-            mail::action(c,user.id,&email,"email",Some(&email),&state.config.app_url)?;
-            mail::enqueue(c,&user.email,"Email change requested","A request was made to change your AppShell email address. If this was not you, reset your password to invalidate the request.")
+            check_password(c, user.id, &input.password)?;
+            mail::action(c, user.id, &email, "email", Some(&email), &state.config)?;
+            mail::email_change_notice(c, &user.email, &state.config)
         })
-    }).await?;
+    })
+    .await?;
     Ok(message("Confirm the link sent to your new email address."))
 }
 pub async fn confirm_email(state: AppState, input: TokenInput) -> Result<Message> {

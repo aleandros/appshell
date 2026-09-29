@@ -69,8 +69,12 @@ app/router -> pages -> feature public APIs -> validated HTTP client
 - `features/{identity,organizations,billing}/index.ts` is the public feature API.
   Endpoint paths, request types, response schemas, and query options live behind
   it. Features cannot import each other; compose cross-feature workflows in a page.
-- `components/` contains shared presentation controls. Pass data and callbacks
-  through props. Controls do not know endpoint paths or feature services.
+- `packages/ui` (`@appshell/ui`) owns reusable controls, theme behavior, and shared
+  styles/tokens. It accepts data and callbacks through props and cannot depend on
+  application code, routers, queries, or network APIs. Its public entry is `index.ts`.
+- Web `components/` adapts those controls to application branding, TanStack Router,
+  and form orchestration. Pages use shared controls instead of raw form elements
+  or the library's private CSS classes. Add stories alongside each new control.
 - `lib/api.ts` is the only network boundary. It handles cookies, cancellation,
   errors, and Zod validation. Generated types alone do not validate network data.
 - `lib/query-client.ts` configures server-state caching. Feature query keys include
@@ -79,7 +83,8 @@ app/router -> pages -> feature public APIs -> validated HTTP client
   values instead of copying query results into component state. The shared workspace
   context holds the selected organization and session for presentation; the server
   remains the authorization authority.
-- `config/brand.ts` and semantic CSS tokens define identity and appearance. Keep
+- `config/brand.ts` and `packages/ui/src/tokens.css` define identity and appearance.
+  Web `styles/tokens.css` is reserved for product-specific overrides. Keep
   accessible controls, keyboard behavior, and light/dark/system support.
 
 React does not need to reproduce the backend's repository/service/domain layers.
@@ -98,7 +103,9 @@ wrapping every hook or component in additional abstractions.
 | `npm run check:rust`         | Workspace-wide Clippy on all targets, with warnings rejected                                                      |
 | `npm test`                   | Frontend validation tests and architecture-checker negative fixtures                                              |
 | `npm run test:rust`          | Domain, API, architectural, and Postgres integration tests                                                        |
-| `npm run verify`             | Checks, both test suites, build, and browser tests                                                                |
+| `npm run test:storybook`     | Shared component interactions, keyboard access, themes, responsive layout, and axe accessibility checks           |
+| `npm run test:mail`          | Real API, outbox, SMTP, and Mailpit delivery of all email types                                                   |
+| `npm run verify`             | Checks, unit/integration tests, app/Storybook builds, browser and local mail tests                                |
 
 Rust workspace lints forbid unsafe code and flag production `unwrap`, `dbg!`,
 `todo!`, and `unimplemented!`. Startup `expect` calls describe fatal configuration
@@ -109,7 +116,9 @@ ESLint uses `strictTypeChecked`, exhaustive switch checks, and React Hooks rules
 The frontend architecture checker resolves imports with TypeScript's resolver,
 including aliases, re-exports, dynamic literal imports, and type imports. It
 rejects cycles, imports into feature internals, upward dependencies, page access
-to the HTTP client, and direct network APIs outside the client. New source files
+to the HTTP client, and direct network APIs outside the client. It also rejects raw form controls and
+private component classes outside the shared UI package, package deep imports,
+and application dependencies in the shared library. New source files
 are checked even if they are omitted from `tsconfig`.
 
 Rust tests parse source with `syn` and inspect tokens, including macro bodies.
@@ -144,6 +153,9 @@ use the Compose database and a disposable schema. Native integration tests requi
 `postgres://appshell:appshell@localhost:5433/appshell`. An explicitly provided URL
 must be reachable from the selected runner. No script loads a local `.env` file.
 Browser tests require the API running, plus `npx playwright install chromium` once.
+Mailpit starts with the API; `test:mail` requires its HTTP endpoint on port 8025
+and SMTP on 1025. It uses unique local accounts and leaves captured messages for
+inspection. Storybook tests start their own local server on port 6006.
 Restart the Compose API after Rust changes before testing browsers. The root
 `test:e2e` command waits up to 60 seconds for `/ready` before starting Playwright.
 

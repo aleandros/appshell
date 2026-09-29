@@ -110,11 +110,15 @@ async fn full_account_and_tenant_lifecycle() {
         mail_mode: "console".into(),
         resend_key: None,
         mail_from: "test@example.com".into(),
+        mail_brand: "AppShell".into(),
+        smtp_host: "localhost".into(),
+        smtp_port: 1025,
         stripe_key: None,
         stripe_price: None,
         stripe_webhook_secret: Some("test-webhook-secret".into()),
     };
-    let app = router(AppState::new(pool.clone(), config), None);
+    let state = AppState::new(pool.clone(), config);
+    let app = router(state.clone(), None);
     // Browser-origin middleware must exempt the nested, signature-protected provider route.
     {
         use hmac::{Hmac, Mac};
@@ -453,6 +457,40 @@ async fn full_account_and_tenant_lifecycle() {
         read(&app, "/api/auth/session", &expired_cookie).await.0,
         401
     );
+
+    // Delivery failure preserves content and schedules a retry. Success scrubs both
+    // formats; a subsequent worker tick must not claim a delivered message again.
+    let job_id = Uuid::new_v4();
+    db::run(pool.clone(), move |c| {
+        sql_query("UPDATE mail_outbox SET available_at=now()+interval '1 day'").execute(c)?;
+        sql_query("INSERT INTO mail_outbox(id,recipient,subject,body,html_body) VALUES($1,'delivery@example.test','Test delivery','plain secret','<p>html secret</p>')")
+            .bind::<diesel::sql_types::Uuid,_>(job_id).execute(c)?;
+        Ok(())
+    }).await.unwrap();
+    let mut failed = state.clone();
+    failed.config.mail_mode = "smtp".into();
+    failed.config.smtp_host = "127.0.0.1".into();
+    failed.config.smtp_port = 1;
+    appshell_api::mail::tick(&failed).await.unwrap();
+    db::run(pool.clone(), move |c| {
+        let row=sql_query("SELECT body,html_body,attempts,sent_at IS NOT NULL AS sent,available_at>now() AS deferred FROM mail_outbox WHERE id=$1")
+            .bind::<diesel::sql_types::Uuid,_>(job_id).get_result::<OutboxState>(c)?;
+        assert_eq!(row.attempts,1); assert!(row.deferred); assert!(!row.sent);
+        assert_eq!(row.body,"plain secret"); assert_eq!(row.html_body.as_deref(),Some("<p>html secret</p>"));
+        sql_query("UPDATE mail_outbox SET available_at=now() WHERE id=$1").bind::<diesel::sql_types::Uuid,_>(job_id).execute(c)?;
+        Ok(())
+    }).await.unwrap();
+    appshell_api::mail::tick(&state).await.unwrap();
+    appshell_api::mail::tick(&state).await.unwrap();
+    db::run(pool.clone(), move |c| {
+        let row=sql_query("SELECT body,html_body,attempts,sent_at IS NOT NULL AS sent,available_at>now() AS deferred FROM mail_outbox WHERE id=$1")
+            .bind::<diesel::sql_types::Uuid,_>(job_id).get_result::<OutboxState>(c)?;
+        assert_eq!(row.attempts,2); assert!(row.sent);
+        assert_eq!(row.body,"[delivered]"); assert!(row.html_body.is_none());
+        Ok(())
+    }).await.unwrap();
+    drop(failed);
+    drop(state);
     drop(app);
     drop(pool);
     db::run(admin, move |c| {
@@ -461,4 +499,18 @@ async fn full_account_and_tenant_lifecycle() {
     })
     .await
     .unwrap();
+}
+
+#[derive(diesel::QueryableByName)]
+struct OutboxState {
+    #[diesel(sql_type=diesel::sql_types::Text)]
+    body: String,
+    #[diesel(sql_type=diesel::sql_types::Nullable<diesel::sql_types::Text>)]
+    html_body: Option<String>,
+    #[diesel(sql_type=diesel::sql_types::Integer)]
+    attempts: i32,
+    #[diesel(sql_type=diesel::sql_types::Bool)]
+    sent: bool,
+    #[diesel(sql_type=diesel::sql_types::Bool)]
+    deferred: bool,
 }

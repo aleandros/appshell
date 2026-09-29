@@ -1,3 +1,5 @@
+import { ButtonAnchor, Card } from '@appshell/ui';
+import { ButtonLink } from '../components/links';
 import { Link } from '@tanstack/react-router';
 import {
   ArrowRight,
@@ -33,12 +35,12 @@ export function Landing() {
           </a>
         </nav>
         <div className="flex items-center gap-3">
-          <Link to="/login" className="btn btn-quiet">
+          <ButtonLink variant="quiet" to="/login">
             Sign in
-          </Link>
-          <Link to="/signup" className="btn btn-primary">
+          </ButtonLink>
+          <ButtonLink variant="primary" to="/signup">
             Get started <ArrowRight size={16} />
-          </Link>
+          </ButtonLink>
         </div>
       </header>
       <main>
@@ -59,12 +61,12 @@ export function Landing() {
               workspace that grows with you.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
-              <Link to="/signup" className="btn btn-primary px-6">
+              <ButtonLink variant="primary" to="/signup" className="px-6">
                 Create your workspace <ArrowRight size={17} />
-              </Link>
-              <a href="#possibilities" className="btn btn-secondary">
+              </ButtonLink>
+              <ButtonAnchor variant="secondary" href="#possibilities">
                 Take a look
-              </a>
+              </ButtonAnchor>
             </div>
             <p className="mt-5 flex items-center gap-2 text-xs text-muted">
               <Check size={14} /> Free to start <span className="mx-1">·</span> No credit card
@@ -73,7 +75,7 @@ export function Landing() {
           </div>
           <div className="relative rounded-[28px] border bg-accent/35 p-5 sm:p-8">
             <span className="eyebrow mb-5 block">A home for what comes next</span>
-            <div className="card relative overflow-hidden">
+            <Card as="div" className="relative overflow-hidden">
               <div className="flex items-center justify-between border-b p-5">
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
@@ -121,7 +123,7 @@ export function Landing() {
                   ))}
                 </div>
               </div>
-            </div>
+            </Card>
             <div className="absolute -right-2 -bottom-4 flex items-center gap-3 rounded-xl border bg-surface px-5 py-4 shadow-lg sm:-right-4">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-primary">
                 <Users size={18} />
@@ -166,13 +168,13 @@ export function Landing() {
                   'Light, dark, or whatever your system prefers. A familiar experience on every screen.',
               },
             ].map(({ icon: Icon, title, description }) => (
-              <article key={title} className="card p-7">
+              <Card as="article" key={title} className="p-7">
                 <span className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-muted text-primary">
                   <Icon size={21} />
                 </span>
                 <h3 className="text-lg font-semibold">{title}</h3>
                 <p className="mt-3 text-sm leading-7 text-muted">{description}</p>
-              </article>
+              </Card>
             ))}
           </div>
         </section>
@@ -189,9 +191,9 @@ export function Landing() {
               Your first workspace includes up to {brand.freeSeats} people and all the essentials.
               Larger teams can move to Pro when billing is enabled for their installation.
             </p>
-            <Link to="/signup" className="btn btn-primary mt-6">
+            <ButtonLink variant="primary" to="/signup" className="mt-6">
               Find your space <ArrowRight size={16} />
-            </Link>
+            </ButtonLink>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[

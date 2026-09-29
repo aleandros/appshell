@@ -1,3 +1,5 @@
+import { Card, Select } from '@appshell/ui';
+import { ButtonLink, CardLink } from '../components/links';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -93,9 +95,9 @@ export function OverviewPage() {
         title={`Hello, ${session.user.name.split(' ')[0] ?? 'there'}.`}
         description="A little structure for your next big thing."
         action={
-          <Link to="/app/team" className="btn btn-secondary">
+          <ButtonLink variant="secondary" to="/app/team">
             <Plus size={16} /> Invite a teammate
-          </Link>
+          </ButtonLink>
         }
       />
       <VerificationBanner />
@@ -148,10 +150,10 @@ export function OverviewPage() {
             to: '/app/settings',
           },
         ].map(({ icon: Icon, label, value, note, to }) => (
-          <Link
+          <CardLink
             key={label}
             to={to}
-            className="card group p-6 transition-colors hover:border-primary/40"
+            className="group p-6 transition-colors hover:border-primary/40"
           >
             <div className="flex items-center justify-between text-muted">
               <span className="text-xs">{label}</span>
@@ -165,7 +167,7 @@ export function OverviewPage() {
                 className="transition-transform group-hover:translate-x-0.5"
               />
             </div>
-          </Link>
+          </CardLink>
         ))}
       </div>
       {(team.isError || billing.isError) && (
@@ -178,7 +180,7 @@ export function OverviewPage() {
         />
       )}
       <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-        <section className="card p-6 sm:p-7">
+        <Card className="p-6 sm:p-7">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">A few small steps</h2>
             <Badge>
@@ -222,8 +224,8 @@ export function OverviewPage() {
               <ArrowRight size={16} className="text-muted" />
             </Link>
           ))}
-        </section>
-        <section className="card flex flex-col justify-between p-7">
+        </Card>
+        <Card className="flex flex-col justify-between p-7">
           <div>
             <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-muted text-primary">
               <Users size={22} />
@@ -234,10 +236,10 @@ export function OverviewPage() {
               something together.
             </p>
           </div>
-          <Link to="/app/team" className="btn btn-secondary mt-6 self-start">
+          <ButtonLink variant="secondary" to="/app/team" className="mt-6 self-start">
             Meet your team <ArrowRight size={15} />
-          </Link>
-        </section>
+          </ButtonLink>
+        </Card>
       </div>
     </>
   );
@@ -274,7 +276,7 @@ export function TeamPage() {
       />
       <VerificationBanner />
       {showInvite && (
-        <section className="card mb-6 max-w-lg p-6">
+        <Card className="mb-6 max-w-lg p-6">
           <h2 className="mb-5 text-lg font-semibold">A little invitation goes a long way.</h2>
           <ActionForm
             schema={z.object({ email, role: z.enum(['admin', 'member']) })}
@@ -296,15 +298,15 @@ export function TeamPage() {
               <label htmlFor="invite-role" className="label">
                 Role
               </label>
-              <select id="invite-role" name="role" className="input" defaultValue="member">
+              <Select id="invite-role" name="role" defaultValue="member">
                 <option value="member">Member — collaborate in the workspace</option>
                 {organization.role === 'owner' && (
                   <option value="admin">Admin — manage team invitations</option>
                 )}
-              </select>
+              </Select>
             </div>
           </ActionForm>
-        </section>
+        </Card>
       )}
       {remove.isError && <Notice kind="error">{errorMessage(remove.error)}</Notice>}
       {remove.isSuccess && <Notice kind="success">{remove.data.message}</Notice>}
@@ -314,7 +316,7 @@ export function TeamPage() {
         <ErrorState error={team.error} retry={() => void team.refetch()} />
       ) : (
         <>
-          <section className="card overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b p-6">
               <h2 className="font-semibold">
                 Workspace members{' '}
@@ -358,8 +360,8 @@ export function TeamPage() {
                 </div>
               ))}
             </div>
-          </section>
-          <section className="card mt-6 p-6">
+          </Card>
+          <Card className="mt-6 p-6">
             <h2 className="font-semibold">Pending invitations</h2>
             {team.data.invitations.length === 0 ? (
               <div className="py-10 text-center">
@@ -393,7 +395,7 @@ export function TeamPage() {
                 </div>
               ))
             )}
-          </section>
+          </Card>
         </>
       )}
     </>
@@ -429,7 +431,7 @@ export function BillingPage() {
         <ErrorState error={billing.error} retry={() => void billing.refetch()} />
       ) : (
         <>
-          <section className="card mb-6 flex flex-wrap items-center justify-between gap-5 p-7">
+          <Card className="mb-6 flex flex-wrap items-center justify-between gap-5 p-7">
             <div>
               <p className="eyebrow">YOUR CURRENT PLAN</p>
               <div className="mt-3 flex items-center gap-3">
@@ -445,7 +447,7 @@ export function BillingPage() {
               </p>
             </div>
             <CreditCard size={36} strokeWidth={1.2} className="text-primary" />
-          </section>
+          </Card>
           {!billing.data.billing_enabled && (
             <Notice>
               Paid plans aren’t enabled for this installation yet. Your free workspace is ready to
@@ -476,10 +478,7 @@ export function BillingPage() {
                 ],
               },
             ].map(({ plan, tag, description, features }) => (
-              <section
-                key={plan}
-                className={`card p-7 ${plan === 'Pro' ? 'border-primary/50' : ''}`}
-              >
+              <Card key={plan} className={`p-7 ${plan === 'Pro' ? 'border-primary/50' : ''}`}>
                 <p className="eyebrow">{tag}</p>
                 <h2 className="mt-4 text-3xl font-semibold">{plan}</h2>
                 <p className="mt-3 text-sm text-muted">{description}</p>
@@ -513,7 +512,7 @@ export function BillingPage() {
                     <ArrowUpRight size={16} />
                   </Button>
                 )}
-              </section>
+              </Card>
             ))}
           </div>
           {organization.role !== 'owner' && (
@@ -536,7 +535,7 @@ export function SettingsPage() {
       />
       <VerificationBanner />
       <div className="grid items-start gap-6 xl:grid-cols-2">
-        <section className="card p-7">
+        <Card className="p-7">
           <h2 className="text-lg font-semibold">Your account</h2>
           <div className="mt-6 space-y-4">
             <div>
@@ -553,8 +552,8 @@ export function SettingsPage() {
             <p className="mt-2 mb-4 text-sm text-muted">A look that feels right, day or night.</p>
             <ThemeSwitcher />
           </div>
-        </section>
-        <section className="card p-7">
+        </Card>
+        <Card className="p-7">
           <h2 className="mb-2 text-lg font-semibold">Change your password</h2>
           <p className="mb-6 text-sm leading-6 text-muted">
             Updating your password signs you out on every device.
@@ -585,8 +584,8 @@ export function SettingsPage() {
               required
             />
           </ActionForm>
-        </section>
-        <section className="card p-7">
+        </Card>
+        <Card className="p-7">
           <h2 className="mb-2 text-lg font-semibold">Change your email</h2>
           <p className="mb-6 text-sm leading-6 text-muted">
             We’ll send a confirmation link to your new address. Your current email stays active
@@ -613,7 +612,7 @@ export function SettingsPage() {
               required
             />
           </ActionForm>
-        </section>
+        </Card>
       </div>
     </>
   );
@@ -628,7 +627,7 @@ export function NewWorkspacePage() {
         description="Give your next idea a space of its own."
       />
       <VerificationBanner />
-      <section className="card max-w-lg p-7">
+      <Card className="max-w-lg p-7">
         <ActionForm
           schema={z.object({ name })}
           label="Create workspace"
@@ -646,7 +645,7 @@ export function NewWorkspacePage() {
             required
           />
         </ActionForm>
-      </section>
+      </Card>
     </>
   );
 }

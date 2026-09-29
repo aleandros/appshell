@@ -1,8 +1,8 @@
+import { ButtonLink } from './components/links';
 import {
   createRootRoute,
   createRoute,
   createRouter,
-  Link,
   Outlet,
   redirect,
 } from '@tanstack/react-router';
@@ -25,9 +25,9 @@ const root = createRootRoute({
   errorComponent: ({ error, reset }) => (
     <div className="p-8">
       <ErrorState error={error} retry={reset} />
-      <Link to="/" className="btn btn-secondary">
+      <ButtonLink variant="secondary" to="/">
         Back to home
-      </Link>
+      </ButtonLink>
     </div>
   ),
   notFoundComponent: () => (
@@ -35,9 +35,9 @@ const root = createRootRoute({
       <p className="eyebrow">404 · A LITTLE OFF TRACK</p>
       <h1 className="page-title">This space isn’t here.</h1>
       <p className="text-muted">The page may have moved, or the link might be incomplete.</p>
-      <Link to="/" className="btn btn-primary">
+      <ButtonLink variant="primary" to="/">
         Back to home
-      </Link>
+      </ButtonLink>
     </div>
   ),
 });

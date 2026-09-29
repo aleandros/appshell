@@ -14,6 +14,8 @@ pub struct Mail {
     pub subject: String,
     #[diesel(sql_type = Text)]
     pub body: String,
+    #[diesel(sql_type=Nullable<Text>)]
+    pub html_body: Option<String>,
 }
 #[derive(QueryableByName)]
 pub struct CheckoutAttempt {

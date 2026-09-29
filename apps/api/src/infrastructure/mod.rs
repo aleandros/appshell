@@ -1,6 +1,7 @@
 pub(crate) mod clock;
 pub(crate) mod crypto;
 pub mod db;
+mod email_template;
 mod error;
 pub mod mail;
 pub(crate) mod repositories;

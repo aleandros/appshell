@@ -13,6 +13,16 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.29
+    ports: ['127.0.0.1:8025:8025', '127.0.0.1:1025:1025']
+    environment:
+      MP_MAX_MESSAGES: 500
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 3s
+      timeout: 3s
+      retries: 20
   api:
     build:
       context: .
@@ -23,7 +33,11 @@ services:
     environment:
       DATABASE_URL: postgres://appshell:appshell@db:5432/appshell
       APP_URL: http://localhost:5173
-      MAIL_MODE: console
+      MAIL_MODE: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: AppShell <hello@appshell.test>
+      MAIL_BRAND: AppShell
       RUST_LOG: appshell_api=info,tower_http=info
     ports: ['127.0.0.1:8080:8080']
     volumes:
@@ -32,6 +46,7 @@ services:
       - cargo-target:/app/target
     depends_on:
       db: { condition: service_healthy }
+      mailpit: { condition: service_healthy }
 volumes:
   postgres:
   cargo-registry:

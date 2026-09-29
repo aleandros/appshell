@@ -1,3 +1,4 @@
+import { ButtonLink } from '../components/links';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { z } from 'zod';
@@ -51,9 +52,9 @@ export function AuthLayout({
       </aside>
       <section className="flex flex-col p-6 sm:p-10">
         <header className="flex items-center justify-between">
-          <Link to="/" className="btn btn-quiet -ml-3 text-xs">
+          <ButtonLink variant="quiet" to="/" className="-ml-3 text-xs">
             <ArrowLeft size={15} /> Back to home
-          </Link>
+          </ButtonLink>
           <ThemeSwitcher />
         </header>
         <div className="mx-auto my-auto w-full max-w-sm py-12">
@@ -193,9 +194,9 @@ export function ForgotPage() {
       >
         <Field label="Email address" name="email" type="email" autoComplete="email" required />
       </ActionForm>
-      <Link to="/login" className="btn btn-quiet mt-5 w-full">
+      <ButtonLink variant="quiet" to="/login" className="mt-5 w-full">
         Back to sign in
-      </Link>
+      </ButtonLink>
     </AuthLayout>
   );
 }
@@ -277,17 +278,17 @@ export function TokenPage({ flow }: { flow: TokenFlow }) {
         </ActionForm>
       )}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link to="/login" className="btn btn-secondary">
+        <ButtonLink variant="secondary" to="/login">
           Sign in
-        </Link>
+        </ButtonLink>
         {flow === 'accept-invite' && (
-          <Link to="/signup" className="btn btn-secondary">
+          <ButtonLink variant="secondary" to="/signup">
             Create an account
-          </Link>
+          </ButtonLink>
         )}
-        <Link to="/app" className="btn btn-quiet">
+        <ButtonLink variant="quiet" to="/app">
           Go to workspace
-        </Link>
+        </ButtonLink>
       </div>
     </AuthLayout>
   );

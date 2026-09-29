@@ -1,0 +1,39 @@
+{
+  "name": "@appshell/ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json && eslint . --max-warnings 0",
+    "storybook": "storybook dev -p 6006 --host 127.0.0.1 --no-open",
+    "build-storybook": "storybook build",
+    "test": "playwright test"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "@storybook/react-vite": "10.6.0",
+    "@storybook/addon-a11y": "10.6.0",
+    "@storybook/addon-docs": "10.6.0",
+    "storybook": "10.6.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^6.4.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@playwright/test": "^1.56.0",
+    "@axe-core/playwright": "^4.13.0"
+  }
+}

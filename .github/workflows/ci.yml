@@ -16,11 +16,17 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U appshell"
           --health-interval 3s --health-timeout 3s --health-retries 20
+      mailpit:
+        image: axllent/mailpit:v1.29
+        ports: ['1025:1025', '8025:8025']
+        options: --health-cmd "/mailpit readyz" --health-interval 3s --health-timeout 3s --health-retries 20
     env:
       DATABASE_URL: postgres://appshell:appshell@localhost:5432/appshell
       TEST_DATABASE_URL: postgres://appshell:appshell@localhost:5432/appshell
       APP_URL: http://localhost:5173
-      MAIL_MODE: console
+      MAIL_MODE: smtp
+      SMTP_HOST: localhost
+      MAIL_FROM: AppShell <hello@appshell.test>
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,13 +41,17 @@ jobs:
       - run: cargo run --locked --bin export-openapi > openapi.json
       - run: npm run generate:api -w apps/web
       - run: git diff --exit-code -- openapi.json apps/web/src/lib/api.generated.ts
-      - run: npm test && npm run build
+      - run: npm test && npm run build && npm run build:storybook
       - run: npx playwright install --with-deps chromium
       - run: |
           cargo run --locked --bin appshell-api > /tmp/appshell-api.log 2>&1 &
           npm run test:e2e
+          npm run test:mail
+          npm run test:storybook
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: browser-test-results
-          path: apps/web/test-results
+          path: |
+            apps/web/test-results
+            packages/ui/test-results

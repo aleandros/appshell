@@ -1,3 +1,5 @@
+import { Select } from '@appshell/ui';
+import { NavigationLink } from '../components/links';
 import { useState } from 'react';
 import { WorkspaceContext } from '../lib/workspace-context';
 import { Link, Outlet, useNavigate } from '@tanstack/react-router';
@@ -55,21 +57,22 @@ export function WorkspaceLayout() {
         <Link to="/" aria-label="AppShell home">
           <Logo />
         </Link>
-        <button
+        <Button
+          variant="quiet"
           onClick={() => setOpen(false)}
           aria-label="Close navigation"
-          className="btn btn-quiet lg:hidden"
+          className="lg:hidden"
         >
           <X size={20} />
-        </button>
+        </Button>
       </div>
       <div className="relative mb-8">
         <label className="sr-only" htmlFor="workspace">
           Current workspace
         </label>
-        <select
+        <Select
           id="workspace"
-          className="input appearance-none py-3.5 pr-9 font-semibold"
+          className="appearance-none py-3.5 pr-9 font-semibold"
           value={organization.id}
           onChange={(event) => {
             setChosen(event.target.value);
@@ -81,27 +84,27 @@ export function WorkspaceLayout() {
               {org.name}
             </option>
           ))}
-        </select>
+        </Select>
         <ChevronDown size={15} className="pointer-events-none absolute top-4 right-3 text-muted" />
       </div>
       <p className="eyebrow mb-3 px-3.5">WORKSPACE</p>
       <nav className="space-y-1" aria-label="Workspace navigation">
         {links.map(({ to, label, icon: Icon }) => (
-          <Link
+          <NavigationLink
             key={to}
             to={to}
             activeOptions={{ exact: true }}
-            className="nav-item"
+
             onClick={() => setOpen(false)}
           >
             <Icon size={19} />
             {label}
-          </Link>
+          </NavigationLink>
         ))}
       </nav>
-      <Link to="/app/new-workspace" className="nav-item mt-4" onClick={() => setOpen(false)}>
+      <NavigationLink to="/app/new-workspace" className="mt-4" onClick={() => setOpen(false)}>
         <Plus size={18} /> New workspace
-      </Link>
+      </NavigationLink>
       <div className="mt-auto pt-10">
         <div className="rounded-2xl border bg-background p-4">
           <span className="text-lg">✦</span>
@@ -127,14 +130,15 @@ export function WorkspaceLayout() {
             <p className="truncate text-xs font-semibold">{session.user.name}</p>
             <p className="mt-1 truncate text-[11px] text-muted">{session.user.email}</p>
           </div>
-          <button
+          <Button
+            variant="quiet"
             aria-label="Sign out"
             onClick={() => logout.mutate()}
             disabled={logout.isPending}
-            className="btn btn-quiet px-2"
+            className="px-2"
           >
             <LogOut size={17} />
-          </button>
+          </Button>
         </div>
         {logout.isError && <Notice kind="error">{errorMessage(logout.error)}</Notice>}
       </div>
@@ -156,14 +160,15 @@ export function WorkspaceLayout() {
         )}
         <header className="flex min-h-20 items-center justify-between gap-4 border-b bg-surface/65 px-5 sm:px-10">
           <div className="flex items-center gap-3">
-            <button
-              className="btn btn-quiet -ml-3 lg:hidden"
+            <Button
+              variant="quiet"
+              className="-ml-3 lg:hidden"
               aria-label="Open navigation"
               aria-expanded={open}
               onClick={() => setOpen(true)}
             >
               <Menu size={21} />
-            </button>
+            </Button>
             <span className="hidden text-xs text-muted sm:inline">Workspace</span>
             <span className="hidden text-border sm:inline">/</span>
             <span className="max-w-32 truncate text-xs font-medium sm:max-w-64">

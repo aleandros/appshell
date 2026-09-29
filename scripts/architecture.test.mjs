@@ -60,3 +60,11 @@ test('rejects cycles including type-only dependency cycles', () => {
     0,
   );
 });
+
+test('shared UI controls cannot be recreated in application screens', () => {
+  assert.ok(inspectSource('pages/test.tsx', '<button>Save</button>').errors.length);
+  assert.ok(inspectSource('components/test.tsx', '<input />').errors.length);
+  assert.ok(inspectSource('pages/test.tsx', '<a className="btn btn-primary">Go</a>').errors.length);
+  assert.equal(inspectSource('pages/test.tsx', '<Button>Save</Button>').errors.length, 0);
+  assert.equal(inspectSource('shared-ui/components.tsx', '<button>Save</button>').errors.length, 0);
+});

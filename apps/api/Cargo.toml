@@ -9,6 +9,7 @@ default-run = "appshell-api"
 workspace = true
 
 [dependencies]
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1"] }
 appshell-domain = { path = "../domain" }
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }

@@ -54,20 +54,28 @@ pub async fn invite(state: AppState, user: User, org: Uuid, input: InviteInput) 
     security::verified(&user)?;
     let email = appshell_domain::identity::email(&input.email)?;
     appshell_domain::organizations::invitation_role(&input.role)?;
-    repositories::run(state.pool,move |c| {
-        security::rate_limit(c,&format!("invite:{}",user.id),30)?;
+    repositories::run(state.pool, move |c| {
+        security::rate_limit(c, &format!("invite:{}", user.id), 30)?;
         c.transaction(|c| {
-            lock_org(c,org)?; let actor = role(c,user.id,org)?;
-            let exists=c.organizations_members_with_email(org,&email)?.count;
-            appshell_domain::organizations::allow_invitation(&actor,&input.role,exists)?;
+            lock_org(c, org)?;
+            let actor = role(c, user.id, org)?;
+            let exists = c.organizations_members_with_email(org, &email)?.count;
+            appshell_domain::organizations::allow_invitation(&actor, &input.role, exists)?;
             // Reissuing replaces the old invite atomically and does not consume an extra seat.
-            c.organizations_delete_invitation_for_email(org,&email)?;
-            check_seats(c,org,true)?;
-            let token=crypto::token();
-            c.organizations_insert_invitation(crate::infrastructure::crypto::id(),org,&email,input.role,crypto::digest(&token))?;
-            mail::enqueue(c,&email,"You're invited to a workspace",&format!("{} invited you to their workspace.\n\nSign in or create an account with {email}, then accept:\n{}/accept-invite#token={token}\n\nThis invitation expires in 7 days.",user.name,state.config.app_url))
+            c.organizations_delete_invitation_for_email(org, &email)?;
+            check_seats(c, org, true)?;
+            let token = crypto::token();
+            c.organizations_insert_invitation(
+                crate::infrastructure::crypto::id(),
+                org,
+                &email,
+                input.role,
+                crypto::digest(&token),
+            )?;
+            mail::invitation(c, &email, &user.name, &token, &state.config)
         })
-    }).await?;
+    })
+    .await?;
     Ok(crate::models::message(
         "Invitation sent. They'll receive an email shortly.",
     ))

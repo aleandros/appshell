@@ -1,0 +1,38 @@
+/* Semantic design tokens: map your design system here, keeping component names stable. */
+:root {
+  color-scheme: light;
+  --background: #f8f9f6;
+  --surface: #ffffff;
+  --surface-muted: #f1f3ee;
+  --foreground: #25332d;
+  --muted: #5e6d63;
+  --border: #e2e7df;
+  --primary: #147d64;
+  --primary-hover: #0b6952;
+  --primary-foreground: #fff;
+  --accent: #e4efe5;
+  --accent-foreground: #326b4c;
+  --danger: #b23a3a;
+  --danger-muted: #fff0ee;
+  --warning: #8a6525;
+  --radius: 1rem;
+  --shadow: 0 5px 22px #1b352a05;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #151c19;
+  --surface: #1b2520;
+  --surface-muted: #243029;
+  --foreground: #e5ede6;
+  --muted: #9aac9f;
+  --border: #344239;
+  --primary: #7ed8b7;
+  --primary-hover: #a0e8cd;
+  --primary-foreground: #112c22;
+  --accent: #273e30;
+  --accent-foreground: #a6d7af;
+  --danger: #ffafaa;
+  --danger-muted: #3f2928;
+  --warning: #e2c185;
+  --shadow: 0 5px 22px #00000010;
+}

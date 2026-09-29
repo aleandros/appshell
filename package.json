@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "license": "MIT",
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "packages/ui"
   ],
   "scripts": {
     "dev": "npm run dev -w apps/web",
@@ -13,14 +14,18 @@
     "test": "node --test scripts/architecture.test.mjs && npm run test -w apps/web",
     "test:e2e": "node scripts/wait-for-api.mjs && npm run test:e2e -w apps/web",
     "generate:api": "docker compose run --rm --no-deps api cargo run --locked --bin export-openapi > openapi.json && npm run generate:api -w apps/web",
-    "check:web": "npm run check -w apps/web && npm run lint:scripts",
+    "check:web": "npm run check -w apps/web && npm run lint:scripts && npm run check -w @appshell/ui",
     "check:architecture": "node scripts/check-architecture.mjs && node scripts/rust.mjs test --locked --test architecture",
     "check:rust": "node scripts/rust.mjs clippy --workspace --all-targets --locked -- -D warnings",
     "format": "prettier --write . && node scripts/rust.mjs fmt --all",
     "format:check": "prettier --check . && node scripts/rust.mjs fmt --all -- --check",
     "lint:scripts": "eslint scripts/*.mjs --config apps/web/eslint.config.js --max-warnings 0",
     "test:rust": "node scripts/rust.mjs test --workspace --locked",
-    "verify": "npm run check && npm test && npm run test:rust && npm run build && npm run test:e2e"
+    "verify": "npm run check && npm test && npm run test:rust && npm run build && npm run build:storybook && npm run test:e2e && npm run test:mail && npm run test:storybook",
+    "storybook": "npm run storybook -w @appshell/ui",
+    "build:storybook": "npm run build-storybook -w @appshell/ui",
+    "test:mail": "node scripts/test-mail.mjs",
+    "test:storybook": "npm test -w @appshell/ui"
   },
   "engines": {
     "node": ">=22.12"

@@ -2,8 +2,11 @@ FROM node:22-bookworm-slim AS web
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
+COPY packages/ui/package.json packages/ui/package.json
 RUN npm ci
 COPY apps/web apps/web
+COPY packages/ui packages/ui
+COPY tsconfig.base.json ./
 RUN npm run build
 
 FROM rust:1-bookworm AS api

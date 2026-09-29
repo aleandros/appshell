@@ -12,10 +12,11 @@ setup, deployment modes, and operational boundaries.
 - `apps/api/src/infrastructure`: repositories, Postgres, crypto, providers, mail.
 - `docs/architecture.md`: dependency rules, boundaries, and extension workflow.
 - `apps/web`: strict TypeScript, React, TanStack Router/Query, Zod, and Tailwind.
-- `apps/web/src/config/brand.ts` and `styles/tokens.css`: product identity and
-  semantic light/dark design tokens.
+- `packages/ui`: shared controls, semantic tokens, styles, and Storybook.
+- `apps/web/src/config/brand.ts`: product identity; web `styles/tokens.css` holds
+  optional product overrides.
 - `openapi.json` and `apps/web/src/lib/api.generated.ts`: generated API contract.
-- `compose.yaml`: local Postgres and API; `Dockerfile`: combined deployment;
+- `compose.yaml`: local Postgres, Mailpit, and API; `Dockerfile`: combined deployment;
   `.github/workflows/ci.yml`: required automated checks.
 
 ## Development
@@ -27,7 +28,7 @@ npm run dev
 ```
 
 The frontend uses port 5173, the API 8080, and local Postgres 5433. Development
-email links appear in `docker compose logs -f api`. Restart the Compose API
+emails appear in Mailpit at http://localhost:8025 (SMTP localhost:1025). Restart the Compose API
 after Rust changes to recompile it. Never commit real credentials, local env
 files, database dumps, or development email logs.
 
@@ -44,6 +45,10 @@ files, database dumps, or development email logs.
 
 - Preserve strict TypeScript settings. Validate untrusted data with Zod and
   use shared controls for loading, errors, validation, and empty states.
+- Add reusable controls to `packages/ui` with stories. App components adapt
+  routing/forms/branding; do not duplicate raw form controls or private UI classes.
+- All email types use `infrastructure/email_template.rs`; preserve HTML escaping,
+  plain-text alternatives, and transactional outbox semantics.
 - Use semantic design tokens; check responsive layouts, keyboard access, and
   light/dark/system appearance when changing the UI.
 - Keep blocking database and password-hashing work off Tokio's async workers.
@@ -73,6 +78,9 @@ docker compose run --rm --no-deps api cargo clippy --all-targets -- -D warnings
 docker compose run --rm -e TEST_DATABASE_URL=postgres://appshell:appshell@db:5432/appshell api cargo test
 npx playwright install chromium
 npm run test:e2e
+npm run build:storybook
+npm run test:storybook
+npm run test:mail # API worker and Mailpit must be running
 ```
 
 Browser tests require the API to be running and create throwaway local
