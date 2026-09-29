@@ -11,6 +11,9 @@ use axum::{
     response::Response,
 };
 pub fn session_token(headers: &HeaderMap) -> Option<String> {
+    named_token(headers, "appshell_session")
+}
+pub(crate) fn named_token(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
         .get("cookie")?
         .to_str()
@@ -18,7 +21,7 @@ pub fn session_token(headers: &HeaderMap) -> Option<String> {
         .split(';')
         .find_map(|part| {
             let (key, value) = part.trim().split_once('=')?;
-            (key == "appshell_session" && value.len() == 64).then(|| value.to_owned())
+            (key == name && value.len() == 64).then(|| value.to_owned())
         })
 }
 pub fn cookie(value: &str, production: bool, clear: bool) -> String {

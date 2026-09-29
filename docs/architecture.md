@@ -1,6 +1,6 @@
 # Architecture and executable standards
 
-AppShell is a modular monolith. Identity, organizations, and billing are bounded
+AppShell is a modular monolith. Identity, organizations, billing, and administration are bounded
 contexts within one deployment and database. A context owns its use cases and
 repository operations. Cross-context work goes through the owning context's
 service API, with one transaction when the operation must be atomic.
@@ -23,7 +23,7 @@ composition root: lib.rs / main.rs wires configuration, connections, and HTTP
   and OpenAPI annotations. Business endpoints call context services. Authentication
   middleware uses the identity service. This layer cannot use repositories or
   domain rules directly.
-- `apps/api/src/contexts/{identity,organizations,billing}`: application services
+- `apps/api/src/contexts/{identity,organizations,billing,admin}`: application services
   orchestrate authorization, domain decisions, transactions, and effects. Each
   context has a private implementation and a public facade in `mod.rs`. Services
   contain no SQL, Diesel types, Axum extractors, or HTTP client calls.
@@ -158,6 +158,17 @@ and SMTP on 1025. It uses unique local accounts and leaves captured messages for
 inspection. Storybook tests start their own local server on port 6006.
 Restart the Compose API after Rust changes before testing browsers. The root
 `test:e2e` command waits up to 60 seconds for `/ready` before starting Playwright.
+
+## Data conventions
+
+Read [Administration and persisted data](data-patterns.md) before adding tables or
+account operations. Each model has a generated UUID primary key, deletion columns,
+and a companion history table installed with `protect_model`. Startup validates
+these conventions. Database triggers block hard deletion, immutable-ID changes,
+and history mutation, and record redacted field changes atomically. Repositories
+must explicitly filter deleted records; transaction-local actor attribution must
+come from the authenticated service. The admin realm uses separate accounts and
+sessions, with user operations delegated to identity within the same unit of work.
 
 ## Adding a capability
 

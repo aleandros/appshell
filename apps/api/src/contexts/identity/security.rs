@@ -30,3 +30,15 @@ pub(crate) async fn throttle_requests(state: &AppState) -> Result<()> {
     })
     .await
 }
+
+/// Lock against administrative changes before applying an authenticated mutation.
+pub(crate) fn authorize(c: &mut UnitOfWork<'_>, user: &User) -> Result<()> {
+    if c.identity_lock_user(user.id)? != 1 {
+        return Err(ApiError::unauthorized());
+    }
+    let current = c.identity_user(user.id)?;
+    if current.email != user.email {
+        return Err(ApiError::unauthorized());
+    }
+    c.actor("user", user.id)
+}

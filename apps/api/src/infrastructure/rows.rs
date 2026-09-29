@@ -161,3 +161,88 @@ pub struct TextValue {
     #[diesel(sql_type = Text)]
     pub value: String,
 }
+
+#[derive(QueryableByName)]
+pub struct Id {
+    #[diesel(sql_type = SqlUuid)]
+    pub id: Uuid,
+}
+
+#[derive(QueryableByName)]
+pub struct AdminAccount {
+    #[diesel(sql_type = SqlUuid)]
+    pub id: Uuid,
+    #[diesel(sql_type = Text)]
+    pub email: String,
+    #[diesel(sql_type = Text)]
+    pub name: String,
+    #[diesel(sql_type = Text)]
+    pub status: String,
+    #[diesel(sql_type = Nullable<Timestamptz>)]
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+impl From<AdminAccount> for crate::models::AdminAccount {
+    fn from(r: AdminAccount) -> Self {
+        Self {
+            id: r.id,
+            email: r.email,
+            name: r.name,
+            status: r.status,
+            deleted_at: r.deleted_at,
+        }
+    }
+}
+#[derive(QueryableByName)]
+pub struct ManagedUser {
+    #[diesel(sql_type = SqlUuid)]
+    pub id: Uuid,
+    #[diesel(sql_type = Text)]
+    pub email: String,
+    #[diesel(sql_type = Text)]
+    pub name: String,
+    #[diesel(sql_type = Text)]
+    pub status: String,
+    #[diesel(sql_type = Nullable<Timestamptz>)]
+    pub email_verified_at: Option<DateTime<Utc>>,
+    #[diesel(sql_type = Nullable<Timestamptz>)]
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+impl From<ManagedUser> for crate::models::ManagedUser {
+    fn from(r: ManagedUser) -> Self {
+        Self {
+            id: r.id,
+            email: r.email,
+            name: r.name,
+            status: r.status,
+            email_verified_at: r.email_verified_at,
+            deleted_at: r.deleted_at,
+        }
+    }
+}
+#[derive(QueryableByName)]
+pub struct HistoryEntry {
+    #[diesel(sql_type = SqlUuid)]
+    pub id: Uuid,
+    #[diesel(sql_type = Text)]
+    pub operation: String,
+    #[diesel(sql_type = diesel::sql_types::Jsonb)]
+    pub changes: serde_json::Value,
+    #[diesel(sql_type = Nullable<SqlUuid>)]
+    pub actor_id: Option<Uuid>,
+    #[diesel(sql_type = Text)]
+    pub actor_kind: String,
+    #[diesel(sql_type = Timestamptz)]
+    pub changed_at: DateTime<Utc>,
+}
+impl From<HistoryEntry> for crate::models::HistoryEntry {
+    fn from(r: HistoryEntry) -> Self {
+        Self {
+            id: r.id,
+            operation: r.operation,
+            changes: r.changes,
+            actor_id: r.actor_id,
+            actor_kind: r.actor_kind,
+            changed_at: r.changed_at,
+        }
+    }
+}

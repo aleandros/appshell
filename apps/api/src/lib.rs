@@ -11,7 +11,7 @@ use axum::{
     Json, Router, middleware,
     routing::{delete, get, post},
 };
-use http::{auth, billing, organizations};
+use http::{admin, auth, billing, organizations};
 use std::sync::Arc;
 use tower_http::{
     compression::CompressionLayer,
@@ -49,6 +49,16 @@ impl AppState {
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        admin::login,
+        admin::logout,
+        admin::session,
+        admin::users,
+        admin::accounts,
+        admin::create,
+        admin::update,
+        admin::update_user,
+        admin::reset_user,
+        admin::history,
         auth::signup,
         auth::login,
         auth::me,
@@ -92,6 +102,15 @@ pub fn router(state: AppState, static_dir: Option<&str>) -> Router {
         ])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
     let api = Router::new()
+        .route("/admin/login", post(admin::login))
+        .route("/admin/logout", post(admin::logout))
+        .route("/admin/session", get(admin::session))
+        .route("/admin/users", get(admin::users))
+        .route("/admin/users/{id}", post(admin::update_user))
+        .route("/admin/users/{id}/reset-password", post(admin::reset_user))
+        .route("/admin/users/{id}/history", get(admin::history))
+        .route("/admin/accounts", get(admin::accounts).post(admin::create))
+        .route("/admin/accounts/{id}", post(admin::update))
         .route("/auth/signup", post(auth::signup))
         .route("/auth/login", post(auth::login))
         .route("/auth/session", get(auth::me))
@@ -154,4 +173,12 @@ pub fn router(state: AppState, static_dir: Option<&str>) -> Router {
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+/// Local provisioning entry point; never exposed as an HTTP route.
+pub async fn bootstrap_admin(
+    pool: db::DbPool,
+    input: models::CreateAdmin,
+) -> error::Result<models::AdminAccount> {
+    contexts::admin::bootstrap(pool, input).await
 }

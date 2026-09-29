@@ -56,6 +56,10 @@ files, database dumps, or development email logs.
   verified-email gates, and subscription entitlements are enforced server-side.
 - Preserve origin checks, secure session handling, single-use token semantics,
   transaction boundaries, and provider signature/idempotency checks.
+- Read `docs/data-patterns.md` for persisted models. Every model needs a PostgreSQL-generated
+  UUID primary key and `protect_model` registration for deletion columns and companion
+  history. Filter soft-deleted rows in normal queries; attribute authenticated writes
+  inside the transaction. Never add application hard deletion or audit secret values.
 - Add a new migration for schema changes; do not rewrite migrations already
   used by an installation. Keep migrations compatible with startup execution.
 - After changing API DTOs/routes, run `npm run generate:api`, update the Zod

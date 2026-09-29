@@ -26,6 +26,8 @@ If you have Rust and libpq installed, use `docker compose up -d db mailpit`, cop
 - PostgreSQL through Diesel with a bounded r2d2 connection pool. Database and Argon2 work runs on blocking workers, off the async HTTP executor. Embedded, versioned migrations run at startup under a Postgres advisory lock.
 - Email/password signup and login; verification and resend; password recovery and authenticated password change; confirmed email change; logout. Password/email changes revoke existing sessions and outstanding action tokens.
 - Hashed opaque sessions in HttpOnly cookies, expiring hashed single-use action tokens, exact-origin checks for writes, persistent rate limits, verified-email gates, and organization authorization on every tenant endpoint.
+- Separate installation admin console at `/admin`, with script-only first-admin bootstrap, account operations, suspension/restoration, and user change history.
+- Postgres-generated UUID IDs, enforced soft deletion, and redacted companion history tables for every application model. See [data patterns](docs/data-patterns.md).
 - Multiple organizations per user; owner/admin/member roles; expiring, revocable invitations; email-bound acceptance; transactional seat reservations and protection against concurrent acceptance.
 - Free/Pro organization subscriptions and server-side seat entitlements. Optional Stripe Checkout, billing portal, and signed/idempotent subscription webhooks. Free works without a payment account.
 - Retryable transactional mail outbox with branded HTML/plain-text templates, Mailpit SMTP delivery locally, and Resend HTTPS delivery in production.
@@ -64,11 +66,24 @@ Sessions, rate limits, invitations, subscriptions, and jobs live in Postgres; AP
 
 Use **one browser origin** with an `/api` proxy when splitting deployments. Alternatively, `VITE_API_URL=https://api.example.com` works with `APP_URL=https://app.example.com` on HTTPS **same-site subdomains**. Unrelated hosting domains are intentionally unsupported with the default SameSite=Lax cookies. Do not weaken cookie policy to work around that; configure a proxy or common domain.
 
+## Administration and data patterns
+
+Run `python3 scripts/bootstrap-admin.py` to create the first installation administrator
+(the password is entered privately). Then open **http://localhost:5173/admin/login**.
+Create subsequent administrators from the console. Admin accounts and sessions are
+separate from customer users and organization roles. No default administrator or
+credentials are seeded.
+
+See [Administration and persisted data](docs/data-patterns.md) for bootstrap/deployment
+instructions, account operations, UUIDs, soft-delete semantics, audit redaction,
+new-model migrations, and exceptional database maintenance. Existing local data is
+preserved by the additive migration; restarting the API applies it.
+
 ## Make it yours
 
 1. Clone the repository and set the package/product name.
 2. Replace `apps/web/src/config/brand.ts`, set `MAIL_BRAND` and `MAIL_FROM`, and customize the semantic tokens in `packages/ui/src/tokens.css`. Use `apps/web/src/styles/tokens.css` only for product-specific overrides. Edit reusable controls in `packages/ui/src`; application screens consume the shared library. Keep field and button accessibility behavior when replacing primitives.
-3. Add domain tables with an `organization_id` foreign key. Check membership inside every tenant query/action; never trust the workspace selected in the browser as authorization.
+3. Add domain tables with a Postgres-generated UUID primary key, an `organization_id` foreign key, and `protect_model` for soft deletion and history (see [data patterns](docs/data-patterns.md)). Check membership inside every tenant query/action; never trust the workspace selected in the browser as authorization.
 4. Add a Rust DTO and utoipa route annotation; regenerate the API types; add a Zod boundary schema and TanStack query keyed by organization ID.
 5. Configure your own email sender and optional billing price. UI plan descriptions live in `brand.ts`; backend seat entitlements live in `apps/domain/src/billing.rs` and are authoritative.
 
@@ -131,4 +146,4 @@ Free includes three seats; active/trialing Pro includes fifty. Other subscriptio
 
 This is a working foundation, not a claim of a security audit. Before a public paid launch, exercise your configured email and Stripe accounts in their sandbox and review abuse limits for your traffic. Application rate limits are shared across replicas and keyed to accounts, with a global write ceiling; put an edge rate limiter in front for IP-based abuse protection. There is no trusted forwarded-IP assumption in the app.
 
-Periodically remove expired sessions/action tokens/invitations/rate-limit rows and old delivered mail, and monitor failed jobs. Preserve billing event IDs for replay protection. Configure database backups, observability, and provider alerts for your deployment. Ownership transfer, organization deletion, audit logs, user deletion/export, and advanced enterprise authorization are deliberate future extensions.
+Periodically soft-delete expired sessions/action tokens/invitations/rate-limit rows and old delivered mail, and monitor failed jobs. Preserve billing event IDs for replay protection. Configure database backups, observability, and provider alerts for your deployment. Ownership transfer, organization deletion workflows, user export, MFA, and advanced enterprise authorization are deliberate future extensions. User soft deletion and change histories are included; exceptional hard deletion is restricted to privileged direct database maintenance.

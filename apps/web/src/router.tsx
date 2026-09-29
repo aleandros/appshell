@@ -1,3 +1,5 @@
+import { AdminLoginPage, AdminPage } from './pages/admin';
+import { adminSessionQuery } from './features/admin';
 import { ButtonLink } from './components/links';
 import {
   createRootRoute,
@@ -69,6 +71,25 @@ const invite = createRoute({
   path: '/accept-invite',
   component: () => <TokenPage flow="accept-invite" />,
 });
+const adminLogin = createRoute({
+  getParentRoute: () => root,
+  path: '/admin/login',
+  component: AdminLoginPage,
+});
+const admin = createRoute({
+  getParentRoute: () => root,
+  path: '/admin',
+  component: AdminPage,
+  beforeLoad: async () => {
+    try {
+      await queryClient.query(adminSessionQuery);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401)
+        redirect({ to: '/admin/login', throw: true });
+      throw error;
+    }
+  },
+});
 const workspace = createRoute({
   getParentRoute: () => root,
   path: '/app',
@@ -107,6 +128,8 @@ const newWorkspace = createRoute({
   component: NewWorkspacePage,
 });
 const routeTree = root.addChildren([
+  adminLogin,
+  admin,
   landing,
   login,
   signup,

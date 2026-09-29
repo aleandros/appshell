@@ -20,7 +20,7 @@ fn enqueue(
     config: &Config,
 ) -> Result<()> {
     let email = email_template::render(&config.mail_brand, subject, body, action)?;
-    c.mail_enqueue(Uuid::new_v4(), recipient, subject, email.text, email.html)?;
+    c.mail_enqueue(recipient, subject, email.text, email.html)?;
     Ok(())
 }
 pub(crate) fn action(

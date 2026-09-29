@@ -35,9 +35,9 @@ pub async fn signup(state: AppState, input: Signup) -> Result<(String, Session)>
         security::rate_limit(c, &format!("signup:{email}"), 5)?;
         let hash = crypto::hash_password(&input.password)?;
         c.transaction(|c| {
-            let id = crate::infrastructure::crypto::id();
-
-            let user = c.identity_create_user(id, &email, name, hash)?;
+            let user = c.identity_create_user(&email, name, hash)?;
+            let id = user.id;
+            c.actor("user", id)?;
             crate::contexts::organizations::create_for_owner(c, id, organization)?;
             mail::action(c, id, &email, "verify", None, &state.config)?;
             new_session(c, id, &session_token)?;
@@ -65,21 +65,22 @@ pub async fn login(state: AppState, input: Login) -> Result<(String, Session)> {
 
     let result = repositories::run(state.pool, move |c| {
         security::rate_limit(c, &format!("login:{email}"), 20)?;
-        let credentials = c.identity_credentials(email)?;
-        // Perform the same expensive operation for unknown accounts.
-        let dummy = state.dummy_password_hash.as_str();
-        let valid = crypto::verify_password(
-            &input.password,
-            credentials
-                .as_ref()
-                .and_then(|v| v.password_hash.as_deref())
-                .unwrap_or(dummy),
-        );
-        let id = credentials
-            .filter(|_| valid)
-            .ok_or_else(ApiError::unauthorized)?
-            .id;
         c.transaction(|c| {
+            let credentials = c.identity_credentials(email)?;
+            // Perform the same expensive operation for unknown accounts.
+            let dummy = state.dummy_password_hash.as_str();
+            let valid = crypto::verify_password(
+                &input.password,
+                credentials
+                    .as_ref()
+                    .and_then(|v| v.password_hash.as_deref())
+                    .unwrap_or(dummy),
+            );
+            let id = credentials
+                .filter(|_| valid)
+                .ok_or_else(ApiError::unauthorized)?
+                .id;
+            c.actor("user", id)?;
             new_session(c, id, &session_token)?;
             let user = c.identity_user(id)?;
             session(c, user)
@@ -94,8 +95,14 @@ pub async fn me(state: AppState, user: User) -> Result<Session> {
 pub async fn logout(state: AppState, token: Option<String>) -> Result<(String, Message)> {
     if let Some(token) = token {
         repositories::run(state.pool, move |c| {
-            c.identity_delete_session(crypto::digest(&token))?;
-            Ok(())
+            c.transaction(|c| {
+                let hash = crypto::digest(&token);
+                if let Some(user) = c.identity_session_user(&hash)? {
+                    security::authorize(c, &user)?;
+                }
+                c.identity_delete_session(hash)?;
+                Ok(())
+            })
         })
         .await?;
     }
@@ -153,6 +160,7 @@ pub async fn resend(state: AppState, user: User) -> Result<Message> {
         security::rate_limit(c, &format!("verify:{}", user.id), 5)?;
         if user.email_verified_at.is_none() {
             c.transaction(|c| {
+                security::authorize(c, &user)?;
                 mail::action(c, user.id, &user.email, "verify", None, &state.config)
             })?;
         }
@@ -175,6 +183,7 @@ pub async fn change_password(
     repositories::run(state.pool, move |c| {
         security::rate_limit(c, &format!("credentials:{}", user.id), 10)?;
         c.transaction(|c| {
+            security::authorize(c, &user)?;
             // Lock the account so concurrent password changes cannot both verify an old password.
             c.identity_lock_user(user.id)?;
             check_password(c, user.id, &input.current_password)?;
@@ -191,6 +200,7 @@ pub async fn change_email(state: AppState, user: User, input: ChangeEmail) -> Re
     repositories::run(state.pool, move |c| {
         security::rate_limit(c, &format!("credentials:{}", user.id), 10)?;
         c.transaction(|c| {
+            security::authorize(c, &user)?;
             check_password(c, user.id, &input.password)?;
             mail::action(c, user.id, &email, "email", Some(&email), &state.config)?;
             mail::email_change_notice(c, &user.email, &state.config)
@@ -214,4 +224,54 @@ pub async fn confirm_email(state: AppState, input: TokenInput) -> Result<Message
     })
     .await?;
     Ok(message("Email updated. Please sign in again."))
+}
+
+// Called only by the admin context after administrator authorization in this unit of work.
+pub(crate) fn managed_users(
+    c: &mut UnitOfWork<'_>,
+    search: &str,
+    offset: i64,
+) -> Result<Vec<ManagedUser>> {
+    c.identity_managed_users(search, offset)
+}
+pub(crate) fn managed_history(
+    c: &mut UnitOfWork<'_>,
+    id: Uuid,
+    offset: i64,
+) -> Result<Vec<HistoryEntry>> {
+    c.identity_user_history(id, offset)
+}
+pub(crate) fn manage_user(
+    c: &mut UnitOfWork<'_>,
+    id: Uuid,
+    input: UpdateUser,
+    config: &crate::config::Config,
+) -> Result<()> {
+    let email = appshell_domain::identity::email(&input.email)?;
+    let name = appshell_domain::identity::name(&input.name)?;
+    appshell_domain::admin::status(&input.status)?;
+    let old = c.identity_managed_user(id)?;
+    c.identity_manage_user(id, &email, &name, &input.status)?;
+    revoke(c, id)?;
+    if email != old.email {
+        mail::email_change_notice(c, &old.email, config)?;
+        if input.status == "active" {
+            mail::action(c, id, &email, "verify", None, config)?;
+        }
+    }
+    Ok(())
+}
+pub(crate) fn managed_reset(
+    c: &mut UnitOfWork<'_>,
+    id: Uuid,
+    config: &crate::config::Config,
+) -> Result<()> {
+    let user = c.identity_managed_user(id)?;
+    if user.deleted_at.is_some() || user.status != "active" {
+        return Err(ApiError::bad(
+            "Restore and activate the account before sending a reset.",
+        ));
+    }
+    revoke(c, id)?;
+    mail::action(c, id, &user.email, "reset", None, config)
 }

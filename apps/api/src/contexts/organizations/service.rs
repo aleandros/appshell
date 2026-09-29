@@ -29,7 +29,10 @@ pub async fn create(state: AppState, user: User, input: NameInput) -> Result<Org
     let name = appshell_domain::identity::name(&input.name)?;
     repositories::run(state.pool, move |c| {
         security::rate_limit(c, &format!("create-org:{}", user.id), 10)?;
-        c.transaction(|c| create_for_owner(c, user.id, name))
+        c.transaction(|c| {
+            security::authorize(c, &user)?;
+            create_for_owner(c, user.id, name)
+        })
     })
     .await
 }
@@ -57,6 +60,7 @@ pub async fn invite(state: AppState, user: User, org: Uuid, input: InviteInput) 
     repositories::run(state.pool, move |c| {
         security::rate_limit(c, &format!("invite:{}", user.id), 30)?;
         c.transaction(|c| {
+            security::authorize(c, &user)?;
             lock_org(c, org)?;
             let actor = role(c, user.id, org)?;
             let exists = c.organizations_members_with_email(org, &email)?.count;
@@ -65,13 +69,7 @@ pub async fn invite(state: AppState, user: User, org: Uuid, input: InviteInput) 
             c.organizations_delete_invitation_for_email(org, &email)?;
             check_seats(c, org, true)?;
             let token = crypto::token();
-            c.organizations_insert_invitation(
-                crate::infrastructure::crypto::id(),
-                org,
-                &email,
-                input.role,
-                crypto::digest(&token),
-            )?;
+            c.organizations_insert_invitation(org, &email, input.role, crypto::digest(&token))?;
             mail::invitation(c, &email, &user.name, &token, &state.config)
         })
     })
@@ -85,6 +83,7 @@ pub async fn accept(state: AppState, user: User, input: TokenInput) -> Result<Me
     security::verified(&user)?;
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
+            security::authorize(c, &user)?;
             let hash = crypto::digest(&input.token);
             let invitation = c
                 .organizations_invitation_by_token(&hash)?
@@ -115,6 +114,7 @@ pub async fn revoke_invite(state: AppState, user: User, org: Uuid, id: Uuid) -> 
     security::verified(&user)?;
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
+            security::authorize(c, &user)?;
             lock_org(c, org)?;
             crate::contexts::organizations::admin(c, user.id, org)?;
             c.organizations_revoke_invitation(org, id)?;
@@ -128,6 +128,7 @@ pub async fn remove_member(state: AppState, user: User, org: Uuid, id: Uuid) -> 
     security::verified(&user)?;
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
+            security::authorize(c, &user)?;
             lock_org(c, org)?;
             let actor = role(c, user.id, org)?;
             let target = role(c, id, org)?;
@@ -161,8 +162,7 @@ pub(crate) fn create_for_owner(
     user: Uuid,
     name: String,
 ) -> Result<Organization> {
-    let id = crate::infrastructure::crypto::id();
-    c.organizations_insert(id, &name)?;
+    let id = c.organizations_insert(&name)?;
     c.organizations_add_owner(id, user)?;
     crate::contexts::billing::initialize(c, id)?;
     Ok(Organization {

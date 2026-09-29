@@ -60,6 +60,7 @@ pub async fn checkout(state: AppState, user: User, org: Uuid) -> Result<Redirect
     let attempt = repositories::run(state.pool.clone(), move |c| {
         security::rate_limit(c, &format!("checkout:{org}"), 10)?;
         c.transaction(|c| {
+            security::authorize(c, &user)?;
             crate::contexts::organizations::lock_org(c, org)?;
             crate::contexts::organizations::owner(c, user.id, org)?;
             let sub = c.billing_subscription(org)?;
@@ -67,7 +68,7 @@ pub async fn checkout(state: AppState, user: User, org: Uuid) -> Result<Redirect
             if let Some(attempt) = c.billing_checkout_attempt(org)? {
                 return Ok(attempt);
             }
-            let request_key = format!("checkout:{}", crate::infrastructure::crypto::id());
+            let request_key = format!("checkout:{}", c.generated_id()?);
             c.billing_save_checkout_attempt(org, &request_key, &parameters, expires_at)?;
             Ok(CheckoutAttempt {
                 request_key,
@@ -127,7 +128,7 @@ pub async fn webhook(state: AppState, signature: String, body: Vec<u8>) -> Resul
         .as_str()
         .ok_or_else(|| ApiError::bad("Missing event id."))?
         .to_owned();
-    let lease_id = crate::infrastructure::crypto::id();
+    let lease_id = repositories::run(state.pool.clone(), |c| c.generated_id()).await?;
     let lock_key = provider_id.clone();
     repositories::run(state.pool.clone(), move |c| {
         let acquired = c.billing_acquire_lease(lock_key, lease_id)?;

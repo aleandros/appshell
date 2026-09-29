@@ -1,9 +1,6 @@
 use crate::error::{ApiError, Result};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use sha2::{Digest, Sha256};
-pub(crate) fn id() -> uuid::Uuid {
-    uuid::Uuid::new_v4()
-}
 
 pub fn token() -> String {
     format!(

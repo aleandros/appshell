@@ -35,7 +35,9 @@ pub async fn migrate(pool: DbPool) -> Result<()> {
             diesel::sql_query("SELECT pg_advisory_xact_lock(72184612)").execute(c)?;
             c.run_pending_migrations(MIGRATIONS)
                 .map(|_| ())
-                .map_err(ApiError::internal)
+                .map_err(ApiError::internal)?;
+            diesel::sql_query("SELECT validate_model_conventions()").execute(c)?;
+            Ok(())
         })
     })
     .await

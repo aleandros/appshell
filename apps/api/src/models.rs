@@ -110,3 +110,57 @@ pub(crate) fn message(text: &str) -> Message {
         message: text.into(),
     }
 }
+
+#[derive(Serialize, ToSchema, Clone)]
+pub struct AdminAccount {
+    pub id: Uuid,
+    pub email: String,
+    pub name: String,
+    pub status: String,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+#[derive(Deserialize, ToSchema)]
+pub struct CreateAdmin {
+    pub email: String,
+    pub name: String,
+    pub password: String,
+}
+#[derive(Deserialize, ToSchema)]
+pub struct UpdateAdmin {
+    pub email: String,
+    pub name: String,
+    pub status: String,
+    pub password: Option<String>,
+}
+#[derive(Serialize, ToSchema)]
+pub struct ManagedUser {
+    pub id: Uuid,
+    pub email: String,
+    pub name: String,
+    pub status: String,
+    pub email_verified_at: Option<DateTime<Utc>>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+#[derive(Deserialize, ToSchema)]
+pub struct UpdateUser {
+    pub email: String,
+    pub name: String,
+    /// active, suspended, or deleted. Setting active explicitly restores a deleted account.
+    pub status: String,
+}
+#[derive(Serialize, ToSchema)]
+pub struct HistoryEntry {
+    pub id: Uuid,
+    pub operation: String,
+    pub changes: serde_json::Value,
+    pub actor_id: Option<Uuid>,
+    pub actor_kind: String,
+    pub changed_at: DateTime<Utc>,
+}
+#[derive(Deserialize, ToSchema)]
+pub struct AdminSearch {
+    #[serde(default)]
+    pub search: String,
+    #[serde(default)]
+    pub offset: i64,
+}

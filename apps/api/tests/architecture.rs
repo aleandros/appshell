@@ -40,6 +40,23 @@ struct Boundary<'a> {
     errors: Vec<String>,
 }
 impl<'ast> Visit<'ast> for Boundary<'_> {
+    fn visit_lit_str(&mut self, node: &'ast syn::LitStr) {
+        if self.path.starts_with("infrastructure/repositories/") {
+            let sql = node.value().to_uppercase();
+            if sql
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .windows(2)
+                .any(|w| w == ["DELETE", "FROM"])
+                || sql.split_whitespace().any(|w| w == "TRUNCATE")
+            {
+                self.errors
+                    .push("hard deletion SQL is forbidden; use soft deletion".into());
+            }
+        }
+        visit::visit_lit_str(self, node);
+    }
+
     fn visit_expr_field(&mut self, node: &'ast syn::ExprField) {
         if let syn::Member::Named(field) = &node.member
             && ((self.path.starts_with("http/")
@@ -80,6 +97,12 @@ fn violations(path: &str, source: &str, repository_methods: &BTreeSet<String>) -
         }
     }
 
+    if path != "infrastructure/crypto.rs" && names.contains("new_v4") {
+        boundary.errors.push(
+            "generate database IDs in PostgreSQL; randomness belongs in crypto token generation"
+                .into(),
+        );
+    }
     let domain = path.starts_with("domain/");
     let infrastructure = path.starts_with("infrastructure/");
     let mut denied = vec!["include", "include_str", "include_bytes"];
@@ -167,6 +190,7 @@ fn violations(path: &str, source: &str, repository_methods: &BTreeSet<String>) -
             "error.rs",
             "models.rs",
             "bin/export-openapi.rs",
+            "bin/bootstrap-admin.rs",
         ]
         .contains(&path))
     {
@@ -188,7 +212,8 @@ fn production_dependencies_respect_layers_and_contexts() {
             if let syn::Item::Impl(item) = item {
                 for item in item.items {
                     if let syn::ImplItem::Fn(method) = item
-                        && method.sig.ident != "transaction"
+                        && !["transaction", "actor", "generated_id"]
+                            .contains(&method.sig.ident.to_string().as_str())
                     {
                         repository_methods.insert(method.sig.ident.to_string());
                     }
@@ -225,6 +250,18 @@ fn rules_reject_bypasses_and_allow_literals() {
     );
 
     for (path, source) in [
+        (
+            "infrastructure/repositories/invalid.rs",
+            "fn f(){ sql_query(\"DELETE FROM users\"); }",
+        ),
+        (
+            "infrastructure/repositories/invalid.rs",
+            "fn f(){ sql_query(\"TRUNCATE users\"); }",
+        ),
+        (
+            "infrastructure/repositories/invalid.rs",
+            "fn f(){ uuid::Uuid::new_v4(); }",
+        ),
         ("http/invalid.rs", "use diesel as storage;"),
         ("contexts/identity/service.rs", "use lettre::Message;"),
         (
