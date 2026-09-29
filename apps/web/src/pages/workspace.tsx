@@ -26,41 +26,33 @@ import {
   PageHeading,
   Plant,
 } from '../components/ui';
-import { useWorkspace } from '../components/workspace';
-import { api, errorMessage, queryClient } from '../lib/api';
-import {
-  billingSchema,
-  email,
-  messageSchema,
-  name,
-  organizationSchema,
-  password,
-  redirectSchema,
-  teamSchema,
-} from '../lib/schemas';
+import { useWorkspace } from '../lib/workspace-context';
+import { errorMessage } from '../lib/errors';
+import { queryClient } from '../lib/query-client';
+import { identityApi } from '../features/identity';
+import { organizationsApi, teamQuery } from '../features/organizations';
+import { billingApi, billingQuery } from '../features/billing';
+import { email, name, password } from '../lib/schemas';
 import { ThemeSwitcher } from '../components/theme';
 
 function useTeam() {
   const { organization, session } = useWorkspace();
   return useQuery({
-    queryKey: ['team', organization.id],
-    queryFn: ({ signal }) => api(`/organizations/${organization.id}/team`, teamSchema, { signal }),
+    ...teamQuery(organization.id),
     enabled: !!session.user.email_verified_at,
   });
 }
 function useBilling() {
   const { organization, session } = useWorkspace();
   return useQuery({
-    queryKey: ['billing', organization.id],
-    queryFn: ({ signal }) =>
-      api(`/organizations/${organization.id}/billing`, billingSchema, { signal }),
+    ...billingQuery(organization.id),
     enabled: !!session.user.email_verified_at,
   });
 }
 export function VerificationBanner() {
   const { session } = useWorkspace();
   const mutation = useMutation({
-    mutationFn: () => api('/auth/resend-verification', messageSchema, { method: 'POST' }),
+    mutationFn: identityApi.resendVerification,
   });
   if (session.user.email_verified_at) return null;
   return (
@@ -257,7 +249,7 @@ export function TeamPage() {
   const canManage = organization.role !== 'member';
   const remove = useMutation({
     mutationFn: ({ id, kind }: { id: string; kind: 'members' | 'invitations' }) =>
-      api(`/organizations/${organization.id}/${kind}/${id}`, messageSchema, { method: 'DELETE' }),
+      organizationsApi.remove(organization.id, kind, id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['team', organization.id] });
       await queryClient.invalidateQueries({ queryKey: ['billing', organization.id] });
@@ -287,12 +279,7 @@ export function TeamPage() {
           <ActionForm
             schema={z.object({ email, role: z.enum(['admin', 'member']) })}
             label="Send invitation"
-            submit={(body) =>
-              api(`/organizations/${organization.id}/invitations`, messageSchema, {
-                method: 'POST',
-                body,
-              })
-            }
+            submit={(body) => organizationsApi.invite(organization.id, body)}
             successMessage="Invitation sent. Your teammate will receive a link by email."
             onSuccess={async () => {
               await queryClient.invalidateQueries({ queryKey: ['team', organization.id] });
@@ -417,7 +404,7 @@ export function BillingPage() {
   const billing = useBilling();
   const mutation = useMutation({
     mutationFn: (mode: 'checkout' | 'billing-portal') =>
-      api(`/organizations/${organization.id}/${mode}`, redirectSchema, { method: 'POST' }),
+      billingApi.openPortal(organization.id, mode),
     onSuccess: ({ url }) => {
       const parsed = new URL(url);
       if (
@@ -575,7 +562,7 @@ export function SettingsPage() {
           <ActionForm
             schema={z.object({ current_password: z.string().min(1), password })}
             label="Update password"
-            submit={(body) => api('/auth/change-password', messageSchema, { method: 'POST', body })}
+            submit={(body) => identityApi.changePassword(body)}
             onSuccess={async () => {
               queryClient.clear();
               await navigate({ to: '/login' });
@@ -608,7 +595,7 @@ export function SettingsPage() {
           <ActionForm
             schema={z.object({ email, password: z.string().min(1) })}
             label="Send confirmation"
-            submit={(body) => api('/auth/change-email', messageSchema, { method: 'POST', body })}
+            submit={(body) => identityApi.changeEmail(body)}
             successMessage="Check your new inbox for a confirmation link."
           >
             <Field
@@ -645,7 +632,7 @@ export function NewWorkspacePage() {
         <ActionForm
           schema={z.object({ name })}
           label="Create workspace"
-          submit={(body) => api('/organizations', organizationSchema, { method: 'POST', body })}
+          submit={(body) => organizationsApi.create(body)}
           onSuccess={async () => {
             await queryClient.invalidateQueries({ queryKey: ['session'] });
             await navigate({ to: '/app' });

@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react';
+import { useState } from 'react';
+import { WorkspaceContext } from '../lib/workspace-context';
 import { Link, Outlet, useNavigate } from '@tanstack/react-router';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import {
@@ -13,20 +14,12 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { api, errorMessage, queryClient, sessionQuery } from '../lib/api';
-import { messageSchema } from '../lib/schemas';
-import type { Organization, Session } from '../lib/schemas';
-import { Badge, Button, Logo, Notice } from './ui';
-import { ThemeSwitcher } from './theme';
+import { errorMessage } from '../lib/errors';
+import { queryClient } from '../lib/query-client';
+import { identityApi, sessionQuery } from '../features/identity';
+import { Badge, Button, Logo, Notice } from '../components/ui';
+import { ThemeSwitcher } from '../components/theme';
 
-const WorkspaceContext = createContext<{ session: Session; organization: Organization } | null>(
-  null,
-);
-export function useWorkspace() {
-  const value = useContext(WorkspaceContext);
-  if (!value) throw new Error('Workspace context is missing');
-  return value;
-}
 const links = [
   { to: '/app', label: 'Overview', icon: LayoutDashboard },
   { to: '/app/team', label: 'Team members', icon: Users },
@@ -41,7 +34,7 @@ export function WorkspaceLayout() {
   const organization =
     session.organizations.find((org) => org.id === chosen) ?? session.organizations[0];
   const logout = useMutation({
-    mutationFn: () => api('/auth/logout', messageSchema, { method: 'POST' }),
+    mutationFn: identityApi.logout,
     onSuccess: async () => {
       queryClient.clear();
       await navigate({ to: '/login' });

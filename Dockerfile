@@ -10,6 +10,8 @@ FROM rust:1-bookworm AS api
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY apps/api apps/api
+COPY apps/domain apps/domain
+COPY clippy.toml ./
 RUN cargo build --release --locked --bin appshell-api
 
 FROM debian:bookworm-slim AS runtime

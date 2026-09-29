@@ -6,8 +6,11 @@ setup, deployment modes, and operational boundaries.
 
 ## Layout
 
-- `apps/api`: Axum routes, Diesel/Postgres persistence, account flows, billing,
-  mail delivery, migrations, and Rust tests.
+- `apps/domain`: pure business rules; no I/O, frameworks, clocks, or randomness.
+- `apps/api/src/http`: HTTP adapters calling context services.
+- `apps/api/src/contexts`: identity, organizations, and billing use cases.
+- `apps/api/src/infrastructure`: repositories, Postgres, crypto, providers, mail.
+- `docs/architecture.md`: dependency rules, boundaries, and extension workflow.
 - `apps/web`: strict TypeScript, React, TanStack Router/Query, Zod, and Tailwind.
 - `apps/web/src/config/brand.ts` and `styles/tokens.css`: product identity and
   semantic light/dark design tokens.
@@ -29,6 +32,15 @@ after Rust changes to recompile it. Never commit real credentials, local env
 files, database dumps, or development email logs.
 
 ## Conventions
+
+- Follow `docs/architecture.md`. Keep SQL in repositories (database bootstrap is
+  the explicit exception), domain decisions in `apps/domain`, and HTTP handlers
+  as adapters to context services. Preserve a single unit of work per transaction.
+- Frontend pages consume feature `index.ts` APIs. Features own endpoint calls and
+  tenant query keys; shared controls receive data/callbacks. Avoid cross-feature
+  imports, cycles, and direct network access outside `lib/api.ts`.
+- `npm run check` enforces formatting, types, lints, and architecture for both
+  stacks. Fix violations rather than adding broad exclusions.
 
 - Preserve strict TypeScript settings. Validate untrusted data with Zod and
   use shared controls for loading, errors, validation, and empty states.
@@ -53,6 +65,7 @@ span the stack. Documentation-only edits do not need application tests.
 
 ```sh
 npm run check
+npm run format # Apply formatting when needed
 npm test
 npm run build
 docker compose run --rm --no-deps api cargo fmt --all -- --check

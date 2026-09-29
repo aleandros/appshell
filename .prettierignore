@@ -4,3 +4,8 @@ apps/web/src/lib/api.generated.ts
 node_modules
 dist
 target
+
+playwright-report
+test-results
+coverage
+*.tsbuildinfo

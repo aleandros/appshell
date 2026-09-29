@@ -16,13 +16,11 @@ describe('API boundary', () => {
   it('preserves structured permission errors', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ code: 'forbidden', message: 'Not allowed' }), {
-            status: 403,
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ code: 'forbidden', message: 'Not allowed' }), {
+          status: 403,
+        }),
+      ),
     );
     await expect(api('/test', z.object({}))).rejects.toMatchObject({
       status: 403,

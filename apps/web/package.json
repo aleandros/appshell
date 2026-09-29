@@ -7,10 +7,12 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "check": "tsc -b && eslint .",
+    "check": "npm run typecheck && npm run lint",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "generate:api": "openapi-typescript ../../openapi.json -o src/lib/api.generated.ts"
+    "generate:api": "openapi-typescript ../../openapi.json -o src/lib/api.generated.ts",
+    "typecheck": "tsc -b",
+    "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",

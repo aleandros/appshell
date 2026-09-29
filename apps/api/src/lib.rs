@@ -1,16 +1,17 @@
-pub mod auth;
-pub mod billing;
+mod infrastructure;
+use crate::infrastructure::repositories;
 pub mod config;
-pub mod db;
+mod contexts;
+pub use infrastructure::db;
 pub mod error;
-pub mod mail;
+mod http;
+pub use infrastructure::mail;
 pub mod models;
-pub mod organizations;
-pub mod security;
 use axum::{
     Json, Router, middleware,
     routing::{delete, get, post},
 };
+use http::{auth, billing, organizations};
 use std::sync::Arc;
 use tower_http::{
     compression::CompressionLayer,
@@ -37,7 +38,10 @@ impl AppState {
                 .build()
                 .expect("HTTP client"),
             dummy_password_hash: Arc::new(
-                security::hash_password(&security::token()).expect("password hasher"),
+                crate::infrastructure::crypto::hash_password(
+                    &crate::infrastructure::crypto::token(),
+                )
+                .expect("password hasher"),
             ),
         }
     }
@@ -119,17 +123,11 @@ pub fn router(state: AppState, static_dir: Option<&str>) -> Router {
         .route("/organizations/{org}/billing-portal", post(billing::portal))
         .route("/webhooks/stripe", post(billing::webhook))
         .route("/openapi.json", get(|| async { Json(ApiDoc::openapi()) }))
-        .fallback(|| async {
-            error::ApiError(
-                axum::http::StatusCode::NOT_FOUND,
-                "not_found",
-                "Unknown API endpoint.",
-            )
-        })
+        .fallback(|| async { error::ApiError(404, "not_found", "Unknown API endpoint.") })
         .layer(axum::extract::DefaultBodyLimit::max(32 * 1024))
         .layer(middleware::from_fn_with_state(
             state.clone(),
-            security::guard,
+            http::security::guard,
         ));
     let mut app = Router::new()
         .nest("/api", api)
@@ -138,9 +136,8 @@ pub fn router(state: AppState, static_dir: Option<&str>) -> Router {
             "/ready",
             get(
                 |axum::extract::State(s): axum::extract::State<AppState>| async move {
-                    db::run(s.pool, |c| {
-                        use diesel::RunQueryDsl;
-                        diesel::sql_query("SELECT 1").execute(c)?;
+                    repositories::run(s.pool, |c| {
+                        c.health_check()?;
                         Ok(())
                     })
                     .await

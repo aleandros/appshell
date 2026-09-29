@@ -1,16 +1,5 @@
-import { queryOptions, QueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { sessionSchema } from './schemas';
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+import { ApiError } from './errors';
 export async function api<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -51,24 +40,4 @@ export async function api<T>(
       'The server returned an unexpected response. Please refresh or try again.',
     );
   return result.data;
-}
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: (attempt, error) =>
-        !(error instanceof ApiError && error.status >= 400 && error.status < 500) && attempt < 1,
-      refetchOnWindowFocus: true,
-    },
-    mutations: { retry: false },
-  },
-});
-export const sessionQuery = queryOptions({
-  queryKey: ['session'],
-  queryFn: ({ signal }) => api('/auth/session', sessionSchema, { signal }),
-  staleTime: 0,
-  retry: false,
-});
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 }

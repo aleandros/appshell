@@ -6,11 +6,13 @@ import {
   Outlet,
   redirect,
 } from '@tanstack/react-router';
-import { ApiError, queryClient, sessionQuery } from './lib/api';
+import { ApiError } from './lib/errors';
+import { queryClient } from './lib/query-client';
+import { sessionQuery } from './features/identity';
 import { ErrorState, Loading } from './components/ui';
 import { Landing } from './pages/landing';
 import { ForgotPage, LoginPage, SignupPage, TokenPage } from './pages/auth';
-import { WorkspaceLayout } from './components/workspace';
+import { WorkspaceLayout } from './app/workspace';
 import {
   BillingPage,
   NewWorkspacePage,

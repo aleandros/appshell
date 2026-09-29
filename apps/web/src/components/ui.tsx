@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { AlertCircle, ArrowRight, CheckCircle2, LoaderCircle, Sprout } from 'lucide-react';
 import { z } from 'zod';
 import { clsx } from 'clsx';
-import { errorMessage } from '../lib/api';
+import { errorMessage } from '../lib/errors';
 import { brand } from '../config/brand';
 
 export function Logo({ compact = false }: { compact?: boolean }) {

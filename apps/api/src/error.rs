@@ -1,8 +1,3 @@
-use axum::{
-    Json,
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -12,79 +7,44 @@ pub struct ErrorBody {
     pub message: String,
 }
 #[derive(Debug)]
-pub struct ApiError(pub StatusCode, pub &'static str, pub &'static str);
+pub struct ApiError(pub u16, pub &'static str, pub &'static str);
 pub type Result<T> = std::result::Result<T, ApiError>;
 impl ApiError {
     pub fn bad(message: &'static str) -> Self {
-        Self(StatusCode::BAD_REQUEST, "invalid_request", message)
+        Self(400, "invalid_request", message)
     }
     pub fn unauthorized() -> Self {
-        Self(
-            StatusCode::UNAUTHORIZED,
-            "unauthenticated",
-            "Please sign in to continue.",
-        )
+        Self(401, "unauthenticated", "Please sign in to continue.")
     }
     pub fn forbidden() -> Self {
-        Self(
-            StatusCode::FORBIDDEN,
-            "forbidden",
-            "You don't have permission to do that.",
-        )
+        Self(403, "forbidden", "You don't have permission to do that.")
     }
     pub fn internal(e: impl std::fmt::Display) -> Self {
         tracing::error!(error = %e, "request failed");
         Self(
-            StatusCode::INTERNAL_SERVER_ERROR,
+            500,
             "internal_error",
             "Something went wrong. Please try again.",
         )
     }
 }
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        (
-            self.0,
-            Json(ErrorBody {
-                code: self.1.into(),
-                message: self.2.into(),
-            }),
-        )
-            .into_response()
-    }
-}
-impl From<diesel::result::Error> for ApiError {
-    fn from(e: diesel::result::Error) -> Self {
-        match e {
-            diesel::result::Error::NotFound => Self(
-                StatusCode::NOT_FOUND,
-                "not_found",
-                "This item is unavailable.",
-            ),
-            diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                _,
-            ) => Self(
-                StatusCode::CONFLICT,
-                "conflict",
-                "This request conflicts with an existing account or record.",
-            ),
-            _ => Self::internal(e),
-        }
-    }
-}
 
-pub struct ApiJson<T>(pub T);
-impl<S, T> axum::extract::FromRequest<S> for ApiJson<T>
-where
-    S: Send + Sync,
-    T: serde::de::DeserializeOwned,
-{
-    type Rejection = ApiError;
-    async fn from_request(req: axum::extract::Request, state: &S) -> Result<Self> {
-        let Json(value) = Json::<T>::from_request(req, state)
-            .await
-            .map_err(|_| ApiError::bad("Please check the submitted fields."))?;
-        Ok(Self(value))
+impl From<appshell_domain::RuleError> for ApiError {
+    fn from(error: appshell_domain::RuleError) -> Self {
+        use appshell_domain::RuleError;
+        match error {
+            RuleError::Invalid(message) => Self::bad(message),
+            RuleError::Forbidden => Self::forbidden(),
+            RuleError::EmailUnverified => Self(
+                403,
+                "email_unverified",
+                "Verify your email before continuing.",
+            ),
+            RuleError::RateLimited => Self(
+                429,
+                "rate_limited",
+                "Too many attempts. Please try again in 15 minutes.",
+            ),
+        }
     }
 }

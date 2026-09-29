@@ -4,15 +4,10 @@ import { z } from 'zod';
 import { ArrowLeft, Check, Sprout } from 'lucide-react';
 import { ActionForm, Field, Logo, Notice, Plant } from '../components/ui';
 import { ThemeSwitcher } from '../components/theme';
-import { api, queryClient } from '../lib/api';
-import {
-  email,
-  loginSchema,
-  messageSchema,
-  password,
-  sessionSchema,
-  signupSchema,
-} from '../lib/schemas';
+import { queryClient } from '../lib/query-client';
+import { identityApi } from '../features/identity';
+import { organizationsApi } from '../features/organizations';
+import { email, loginSchema, password, signupSchema } from '../lib/schemas';
 import type { ReactNode } from 'react';
 
 export function AuthLayout({
@@ -85,7 +80,7 @@ export function SignupPage() {
         schema={signupSchema}
         label="Create your workspace"
         submit={async (body) => {
-          const result = await api('/auth/signup', sessionSchema, { method: 'POST', body });
+          const result = await identityApi.signup(body);
           queryClient.clear();
           queryClient.setQueryData(['session'], result);
         }}
@@ -145,7 +140,7 @@ export function LoginPage() {
         schema={loginSchema}
         label="Sign in"
         submit={async (body) => {
-          const result = await api('/auth/login', sessionSchema, { method: 'POST', body });
+          const result = await identityApi.login(body);
           queryClient.clear();
           queryClient.setQueryData(['session'], result);
         }}
@@ -193,7 +188,7 @@ export function ForgotPage() {
       <ActionForm
         schema={z.object({ email })}
         label="Send reset link"
-        submit={(body) => api('/auth/forgot-password', messageSchema, { method: 'POST', body })}
+        submit={(body) => identityApi.forgotPassword(body)}
         successMessage="If an account exists, a reset link is on its way. Check your inbox."
       >
         <Field label="Email address" name="email" type="email" autoComplete="email" required />
@@ -256,10 +251,9 @@ export function TokenPage({ flow }: { flow: TokenFlow }) {
           schema={flow === 'reset-password' ? z.object({ password }) : z.object({})}
           label={copy.label}
           submit={(body) =>
-            api(flow === 'accept-invite' ? '/invitations/accept' : `/auth/${flow}`, messageSchema, {
-              method: 'POST',
-              body: { ...body, token },
-            })
+            flow === 'accept-invite'
+              ? organizationsApi.accept(token)
+              : identityApi.completeAction(flow, { ...body, token })
           }
           onSuccess={async () => {
             setDone(true);

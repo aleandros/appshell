@@ -1,32 +1,32 @@
-use crate::{AppState, db, error::Result};
-use diesel::{
-    prelude::*,
-    sql_query,
-    sql_types::{Text, Uuid as SqlUuid},
-};
+use crate::infrastructure::repositories;
+use crate::infrastructure::repositories::UnitOfWork;
+use crate::{AppState, error::Result};
 use uuid::Uuid;
 
-pub fn enqueue(c: &mut PgConnection, recipient: &str, subject: &str, body: &str) -> Result<()> {
-    sql_query("INSERT INTO mail_outbox(id,recipient,subject,body) VALUES($1,$2,$3,$4)")
-        .bind::<SqlUuid, _>(Uuid::new_v4())
-        .bind::<Text, _>(recipient)
-        .bind::<Text, _>(subject)
-        .bind::<Text, _>(body)
-        .execute(c)?;
+pub(crate) fn enqueue(
+    c: &mut UnitOfWork<'_>,
+    recipient: &str,
+    subject: &str,
+    body: &str,
+) -> Result<()> {
+    c.mail_enqueue(Uuid::new_v4(), recipient, subject, body)?;
     Ok(())
 }
-pub fn action(
-    c: &mut PgConnection,
+pub(crate) fn action(
+    c: &mut UnitOfWork<'_>,
     user: Uuid,
     recipient: &str,
     purpose: &str,
     payload: Option<&str>,
     app_url: &str,
 ) -> Result<()> {
-    let token = crate::security::token();
-    sql_query("INSERT INTO action_tokens(token_hash,user_id,purpose,payload,expires_at) VALUES($1,$2,$3,$4,now()+interval '1 hour') ON CONFLICT(user_id,purpose) DO UPDATE SET token_hash=excluded.token_hash,payload=excluded.payload,expires_at=excluded.expires_at")
-        .bind::<Text,_>(crate::security::digest(&token)).bind::<SqlUuid,_>(user).bind::<Text,_>(purpose)
-        .bind::<diesel::sql_types::Nullable<Text>,_>(payload).execute(c)?;
+    let token = crate::infrastructure::crypto::token();
+    c.identity_issue_action(
+        crate::infrastructure::crypto::digest(&token),
+        user,
+        purpose,
+        payload,
+    )?;
     let (path, subject) = match purpose {
         "verify" => ("verify-email", "Verify your email"),
         "reset" => ("reset-password", "Reset your password"),
@@ -41,21 +41,9 @@ pub fn action(
         ),
     )
 }
-#[derive(QueryableByName)]
-struct Mail {
-    #[diesel(sql_type = SqlUuid)]
-    id: Uuid,
-    #[diesel(sql_type = Text)]
-    recipient: String,
-    #[diesel(sql_type = Text)]
-    subject: String,
-    #[diesel(sql_type = Text)]
-    body: String,
-}
+
 pub async fn tick(state: &AppState) -> Result<()> {
-    let mails = db::run(state.pool.clone(), |c| {
-        Ok(sql_query("UPDATE mail_outbox SET attempts=attempts+1,available_at=now()+interval '5 minutes' WHERE id IN (SELECT id FROM mail_outbox WHERE sent_at IS NULL AND attempts<10 AND available_at<=now() ORDER BY created_at LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING id,recipient,subject,body").load::<Mail>(c)?)
-    }).await?;
+    let mails = repositories::run(state.pool.clone(), |c| c.mail_claim()).await?;
     for mail in mails {
         let delivered = if state.config.mail_mode == "console" {
             tracing::info!(to=%mail.recipient, body=%mail.body, "development email");
@@ -71,10 +59,8 @@ pub async fn tick(state: &AppState) -> Result<()> {
                 }
         };
         if delivered {
-            db::run(state.pool.clone(), move |c| {
-                sql_query("UPDATE mail_outbox SET sent_at=now(),body='[delivered]' WHERE id=$1")
-                    .bind::<SqlUuid, _>(mail.id)
-                    .execute(c)?;
+            repositories::run(state.pool.clone(), move |c| {
+                c.mail_mark_delivered(mail.id)?;
                 Ok(())
             })
             .await?;

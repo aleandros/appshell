@@ -1,3 +1,9 @@
+#![allow(clippy::unwrap_used)] // Test fixtures fail fast, including helper functions.
+#[derive(diesel::QueryableByName)]
+struct TextValue {
+    #[diesel(sql_type=diesel::sql_types::Text)]
+    value: String,
+}
 use appshell_api::{AppState, config::Config, db, router};
 use axum::{
     Router,
@@ -58,7 +64,7 @@ async fn mail_token(pool: db::DbPool, email: &str, subject: &str) -> String {
     let subject = subject.to_owned();
     db::run(pool,move |c| {
         let row=sql_query("SELECT body AS value FROM mail_outbox WHERE recipient=$1 AND subject=$2 ORDER BY created_at DESC LIMIT 1")
-            .bind::<Text,_>(email).bind::<Text,_>(subject).get_result::<appshell_api::models::TextValue>(c)?;
+            .bind::<Text,_>(email).bind::<Text,_>(subject).get_result::<TextValue>(c)?;
         Ok(row.value.split("#token=").nth(1).unwrap().split_whitespace().next().unwrap().to_owned())
     }).await.unwrap()
 }

@@ -5,7 +5,11 @@ license = "MIT"
 edition = "2024"
 default-run = "appshell-api"
 
+[lints]
+workspace = true
+
 [dependencies]
+appshell-domain = { path = "../domain" }
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["cors", "fs", "trace", "compression-gzip", "limit", "set-header"] }
@@ -25,8 +29,9 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
-validator = "0.20"
 
 [dev-dependencies]
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = "1"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

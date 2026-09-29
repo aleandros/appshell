@@ -13,7 +13,9 @@ jobs:
           POSTGRES_USER: appshell
           POSTGRES_PASSWORD: appshell
         ports: ['5432:5432']
-        options: --health-cmd 'pg_isready -U appshell' --health-interval 3s --health-timeout 3s --health-retries 20
+        options: >-
+          --health-cmd "pg_isready -U appshell"
+          --health-interval 3s --health-timeout 3s --health-retries 20
     env:
       DATABASE_URL: postgres://appshell:appshell@localhost:5432/appshell
       TEST_DATABASE_URL: postgres://appshell:appshell@localhost:5432/appshell
@@ -28,17 +30,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt-get update && sudo apt-get install -y libpq-dev
       - run: npm ci
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
-      - run: cargo run --bin export-openapi > openapi.json
+      - run: npm run check
+      - run: npm run test:rust
+      - run: cargo run --locked --bin export-openapi > openapi.json
       - run: npm run generate:api -w apps/web
       - run: git diff --exit-code -- openapi.json apps/web/src/lib/api.generated.ts
-      - run: npm run check && npm test && npm run build
+      - run: npm test && npm run build
       - run: npx playwright install --with-deps chromium
       - run: |
-          cargo run --bin appshell-api > /tmp/appshell-api.log 2>&1 &
-          for i in $(seq 1 60); do curl -fsS http://localhost:8080/ready && break; sleep 1; done
+          cargo run --locked --bin appshell-api > /tmp/appshell-api.log 2>&1 &
           npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

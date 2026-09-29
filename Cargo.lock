@@ -30,6 +30,7 @@ dependencies = [
 name = "appshell-api"
 version = "0.1.0"
 dependencies = [
+ "appshell-domain",
  "argon2",
  "axum",
  "chrono",
@@ -39,11 +40,13 @@ dependencies = [
  "hex",
  "hmac",
  "http-body-util",
+ "proc-macro2",
  "rand_core 0.6.4",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
+ "syn 2.0.119",
  "tokio",
  "tower",
  "tower-http",
@@ -51,6 +54,12 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "appshell-domain"
+version = "0.1.0"
+dependencies = [
  "validator",
 ]
 
