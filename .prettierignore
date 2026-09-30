@@ -11,3 +11,7 @@ coverage
 *.tsbuildinfo
 
 storybook-static/
+
+.aws-sam/
+samconfig.toml
+samconfig.yaml

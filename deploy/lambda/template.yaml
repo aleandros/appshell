@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AppShell static React frontend, Lambda API and mail worker, external PostgreSQL
+Parameters:
+  ImageUri:
+    Type: String
+    Description: Immutable ECR image URI from Dockerfile.lambda (same region, linux/amd64)
+  AppUrl:
+    Type: String
+    Default: https://setup.invalid
+    AllowedPattern: 'https://[^/]+'
+    Description: Exact frontend HTTPS origin, no trailing slash; update after first deployment
+  SecretArn:
+    Type: String
+    Description: Secrets Manager JSON with database_url, migration_database_url, resend_key
+  MailFrom:
+    Type: String
+    Description: Verified Resend sender, e.g. Your App <hello@example.com>
+  MailBrand:
+    Type: String
+    Default: AppShell
+  MailSchedule:
+    Type: String
+    Default: rate(1 minute)
+    Description: Frequent polling improves email latency but can prevent Neon scale-to-zero
+  Jobs:
+    Type: String
+    Default: disabled
+    AllowedValues: [disabled, sqs]
+    Description: Optional shared jobs; SQS delivery with a transactional Postgres outbox
+  JobsRecoverySchedule:
+    Type: String
+    Default: rate(15 minutes)
+    Description: Recovery for missed publications and delayed jobs; polls Postgres
+  ApiConcurrency:
+    Type: Number
+    Default: 5
+    MinValue: 1
+Conditions:
+  UseJobs: !Equals [!Ref Jobs, sqs]
+  LegacyMail: !Equals [!Ref Jobs, disabled]
+Globals:
+  Function:
+    Architectures: [x86_64]
+    MemorySize: 512
+    Timeout: 28
+    Environment:
+      Variables:
+        JOB_BACKEND: !Ref Jobs
+        APP_ENV: production
+        APP_URL: !Ref AppUrl
+        DB_POOL_SIZE: '2'
+        DATABASE_URL: !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:database_url}}'
+        MAIL_MODE: resend
+        MAIL_FROM: !Ref MailFrom
+        MAIL_BRAND: !Ref MailBrand
+        RESEND_API_KEY: !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:resend_key}}'
+        AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH: 'true'
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+  Api:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageUri: !Ref ImageUri
+      ReservedConcurrentExecutions: !Ref ApiConcurrency
+      Environment:
+        Variables:
+          RUN_MODE: api
+          JOBS_QUEUE_URL: !If [UseJobs, !Ref JobsQueue, '']
+      Policies:
+        - !If
+          - UseJobs
+          - SQSSendMessagePolicy:
+              QueueName: !GetAtt JobsQueue.QueueName
+          - !Ref AWS::NoValue
+      Events:
+        Proxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+            PayloadFormatVersion: '2.0'
+  MailWorker:
+    Condition: LegacyMail
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageUri: !Ref ImageUri
+      # One batch has ten messages, each with a 20-second provider timeout.
+      Timeout: 240
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          RUN_MODE: worker
+      Events:
+        Outbox:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref MailSchedule
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+        MaximumEventAgeInSeconds: 300
+  JobsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Condition: UseJobs
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+  JobsQueue:
+    Type: AWS::SQS::Queue
+    Condition: UseJobs
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      VisibilityTimeout: 540
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt JobsDeadLetterQueue.Arn
+        maxReceiveCount: 10
+  JobsWorker:
+    Type: AWS::Serverless::Function
+    Condition: UseJobs
+    Properties:
+      PackageType: Image
+      ImageUri: !Ref ImageUri
+      Timeout: 90
+      ReservedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          RUN_MODE: sqs
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt JobsQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes: [ReportBatchItemFailures]
+            ScalingConfig:
+              MaximumConcurrency: 2
+  JobsDispatcher:
+    Type: AWS::Serverless::Function
+    Condition: UseJobs
+    Properties:
+      PackageType: Image
+      ImageUri: !Ref ImageUri
+      Timeout: 240
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          RUN_MODE: dispatcher
+          JOBS_QUEUE_URL: !Ref JobsQueue
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt JobsQueue.QueueName
+      Events:
+        Recovery:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref JobsRecoverySchedule
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+        MaximumEventAgeInSeconds: 300
+  Migrate:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageUri: !Ref ImageUri
+      Timeout: 900
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          RUN_MODE: migrate
+          DATABASE_URL: !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:migration_database_url}}'
+      # Deliberately no HTTP or schedule event. Invoke with deployment IAM credentials.
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  OriginAccess:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-frontend'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+  SpaRouting:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${AWS::StackName}-spa'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrite client routes only in the static frontend behavior
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          if (request.uri.indexOf('.') === -1) request.uri = '/index.html';
+          return request;
+        }
+  StaticCache:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-static'
+        DefaultTTL: 60
+        MinTTL: 0
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig: { CookieBehavior: none }
+          HeadersConfig: { HeaderBehavior: none }
+          QueryStringsConfig: { QueryStringBehavior: none }
+  NoApiCache:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-api-no-cache'
+        DefaultTTL: 0
+        MinTTL: 0
+        MaxTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          CookiesConfig: { CookieBehavior: none }
+          HeadersConfig: { HeaderBehavior: none }
+          QueryStringsConfig: { QueryStringBehavior: none }
+  ApiForwarding:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub '${AWS::StackName}-api-forwarding'
+        CookiesConfig: { CookieBehavior: all }
+        QueryStringsConfig: { QueryStringBehavior: all }
+        HeadersConfig:
+          HeaderBehavior: allExcept
+          Headers: [host]
+  Frontend:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        ViewerCertificate: { CloudFrontDefaultCertificate: true }
+        Origins:
+          - Id: static
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccess.Id
+            S3OriginConfig: { OriginAccessIdentity: '' }
+          - Id: api
+            DomainName: !Sub '${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: static
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref StaticCache
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRouting.FunctionARN
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: api
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+            CachedMethods: [GET, HEAD]
+            CachePolicyId: !Ref NoApiCache
+            OriginRequestPolicyId: !Ref ApiForwarding
+  FrontendPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Frontend}'
+Outputs:
+  FrontendUrl:
+    Value: !Sub 'https://${Frontend.DomainName}'
+  FrontendBucketName:
+    Value: !Ref FrontendBucket
+  DistributionId:
+    Value: !Ref Frontend
+  ApiUrl:
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+  MigrationFunction:
+    Value: !Ref Migrate
+  MailFunction:
+    Condition: LegacyMail
+    Value: !Ref MailWorker
+  JobsQueueUrl:
+    Condition: UseJobs
+    Value: !Ref JobsQueue
+  JobsDeadLetterQueueUrl:
+    Condition: UseJobs
+    Value: !Ref JobsDeadLetterQueue

@@ -1,5 +1,26 @@
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JobBackend {
+    Disabled,
+    Postgres,
+    Sqs,
+}
+impl JobBackend {
+    fn from_env() -> Self {
+        match std::env::var("JOB_BACKEND")
+            .as_deref()
+            .unwrap_or("disabled")
+        {
+            "disabled" => Self::Disabled,
+            "postgres" => Self::Postgres,
+            "sqs" => Self::Sqs,
+            _ => panic!("JOB_BACKEND must be disabled, postgres, or sqs"),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Config {
+    pub job_backend: JobBackend,
     pub app_url: String,
     pub production: bool,
     pub mail_mode: String,
@@ -39,6 +60,7 @@ impl Config {
             "RESEND_API_KEY is required"
         );
         Self {
+            job_backend: JobBackend::from_env(),
             app_url,
             production,
             mail_mode,

@@ -1,0 +1,32 @@
+# Opt-in local API + separate Postgres job worker. Base Compose stays unchanged.
+services:
+  api:
+    environment:
+      RUN_MODE: api
+      JOB_BACKEND: postgres
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: appshell-dev
+    working_dir: /app
+    command: cargo run --bin appshell-api
+    stop_grace_period: 240s
+    environment:
+      DATABASE_URL: postgres://appshell:appshell@db:5432/appshell
+      APP_URL: http://localhost:5173
+      RUN_MODE: worker
+      JOB_BACKEND: postgres
+      MAIL_MODE: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: AppShell <hello@appshell.test>
+      MAIL_BRAND: AppShell
+      RUST_LOG: appshell_api=info
+    volumes:
+      - .:/app
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/app/target
+    depends_on:
+      db: { condition: service_healthy }
+      mailpit: { condition: service_healthy }

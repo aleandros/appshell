@@ -20,7 +20,16 @@ fn enqueue(
     config: &Config,
 ) -> Result<()> {
     let email = email_template::render(&config.mail_brand, subject, body, action)?;
-    c.mail_enqueue(recipient, subject, email.text, email.html)?;
+    let id = c.mail_enqueue(recipient, subject, email.text, email.html)?;
+    if config.job_backend != crate::config::JobBackend::Disabled {
+        let job_id = super::job_queue::enqueue(
+            c,
+            config,
+            super::job_queue::Job::DeliverMail { mail_id: id },
+            0,
+        )?;
+        c.mail_set_job(id, job_id)?;
+    }
     Ok(())
 }
 pub(crate) fn action(
@@ -160,6 +169,18 @@ async fn deliver(state: &AppState, mail: &Mail) -> Result<()> {
         )),
     }
 }
+pub(crate) async fn deliver_queued(state: &AppState, id: Uuid) -> Result<()> {
+    // Completed/deleted mail is a no-op on redelivery. Resend additionally receives
+    // a stable idempotency key for a crash between provider acceptance and this write.
+    let Some(mail) = repositories::run(state.pool.clone(), move |c| c.mail_pending(id)).await?
+    else {
+        return Ok(());
+    };
+    deliver(state, &mail).await?;
+    repositories::run(state.pool.clone(), move |c| c.mail_mark_delivered(id)).await?;
+    Ok(())
+}
+
 pub async fn tick(state: &AppState) -> Result<()> {
     let mails = repositories::run(state.pool.clone(), |c| c.mail_claim()).await?;
     for mail in mails {

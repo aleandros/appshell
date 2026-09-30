@@ -187,10 +187,12 @@ fn violations(path: &str, source: &str, repository_methods: &BTreeSet<String>) -
             "lib.rs",
             "main.rs",
             "config.rs",
+            "jobs.rs",
             "error.rs",
             "models.rs",
             "bin/export-openapi.rs",
             "bin/bootstrap-admin.rs",
+            "bin/lambda.rs",
         ]
         .contains(&path))
     {

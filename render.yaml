@@ -2,6 +2,7 @@ services:
   - type: web
     name: appshell
     runtime: docker
+    autoDeployTrigger: 'off'
     plan: free
     healthCheckPath: /ready
     envVars:

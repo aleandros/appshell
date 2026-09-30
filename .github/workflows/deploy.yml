@@ -1,0 +1,70 @@
+name: Deploy
+on:
+  workflow_call:
+    inputs:
+      manual:
+        type: boolean
+        default: false
+    secrets:
+      RENDER_API_KEY:
+        required: false
+permissions:
+  contents: read
+jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.settings.outputs.mode }}
+      region: ${{ steps.settings.outputs.region }}
+      role: ${{ steps.settings.outputs.role }}
+    steps:
+      - name: Check that this is still the default branch tip
+        id: current
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.repository.default_branch;
+            const { data } = await github.rest.repos.getBranch({ ...context.repo, branch });
+            core.setOutput('current', context.ref === `refs/heads/${branch}` && context.sha === data.commit.sha);
+      - uses: actions/checkout@v4
+        if: steps.current.outputs.current == 'true'
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        if: steps.current.outputs.current == 'true'
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+        if: steps.current.outputs.current == 'true'
+      - id: settings
+        if: steps.current.outputs.current == 'true'
+        run: node scripts/deployment-workflow.mjs
+        env:
+          APPSHELL_MANUAL_DEPLOY: ${{ inputs.manual }}
+  release:
+    needs: configuration
+    if: needs.configuration.outputs.mode != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    concurrency:
+      group: appshell-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - uses: docker/setup-buildx-action@v3
+        if: needs.configuration.outputs.mode == 'lambda'
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: needs.configuration.outputs.mode == 'lambda'
+        with:
+          role-to-assume: ${{ needs.configuration.outputs.role }}
+          aws-region: ${{ needs.configuration.outputs.region }}
+      - run: npm run deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}

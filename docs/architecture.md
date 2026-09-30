@@ -12,7 +12,7 @@ HTTP adapters -> context services -> pure domain rules
                          |
                          +-> infrastructure repositories and provider adapters
 
-composition root: lib.rs / main.rs wires configuration, connections, and HTTP
+composition root: lib.rs / main.rs / bin/lambda.rs wires configuration, connections, and HTTP
 ```
 
 - `apps/domain`: independent Rust crate containing credential validation,
@@ -53,6 +53,22 @@ not introduce generic CRUD repositories, one trait per function, CQRS, or an eve
 bus. Introduce a repository/provider port when another implementation or focused
 service test actually needs it. Pure business rules already test without Postgres;
 transaction and authorization behavior test against real Postgres.
+
+The optional `lambda` Cargo feature adds the Lambda composition root without changing
+context or repository dependencies. It uses the same Axum router and bounded blocking
+workers. API/mail invocations do not migrate; a private migration function runs the
+existing migration and model validation explicitly. Scheduled mail awaits one batch;
+Lambda never launches the perpetual Docker mail worker. See [deployment setup](../deploy/lambda/README.md).
+
+Optional jobs add a second entry point into existing services. `jobs.rs` is the
+shared dispatch/composition module; `infrastructure/job_queue.rs` owns typed,
+versioned enqueue operations inside the caller's `UnitOfWork`. Queue SQL remains
+in repositories and deterministic retry policy in `apps/domain/src/jobs.rs`.
+Docker's worker process and the SQS Lambda adapter call the same dispatcher.
+Future business handlers call the owning context's service, which enforces tenant
+scope and authorization; queue possession is not authorization. Email delivery is
+the first infrastructure handler. SQS carries only IDs of committed Postgres jobs;
+it never replaces the transaction with a network write. See [background jobs](background-jobs.md).
 
 ## React dependency direction
 
@@ -134,10 +150,23 @@ query-key completeness, semantic domain ownership, and accessibility. Do not add
 blanket exclusions to make a violation pass; change the dependency or document and
 test a narrowly justified rule change.
 
-CI runs the same scripts, regenerates API contracts and rejects drift, then runs
-browser tests. Configure the GitHub `Checks / check` status as a required branch
-protection check to prevent merging failures; that repository setting is outside
-these source-controlled scripts.
+CI runs the same scripts, checks API contracts without rewriting working files, and
+runs browser/mail/Storybook tests. Rust Clippy and integration tests include the Lambda
+feature. Separate jobs build both production Docker images and validate the SAM template.
+Configure `check`, both `container` matrix jobs, and the infrastructure validation job as required
+branch protection checks; that repository setting is outside these source-controlled scripts.
+
+`npm ci` installs repository-local pre-commit and pre-push hooks. Commit checks cover
+formatting, frontend types/lint, and frontend architecture; push checks add the full
+Rust checks, unit/Postgres tests, contract drift, and the frontend build. They inspect
+the working tree and do not modify the index. See the [hook guide](../README.md#git-hooks-and-github-workflows)
+for existing custom hook paths and prerequisites.
+
+Deployment scripts are tooling outside the application dependency graph. Setup validates
+and saves a strict, non-secret config; release scripts call providers with argument arrays
+or fixed API URLs. The GitHub release job depends on application checks, both image builds,
+and infrastructure validation. Automatic releases require an explicit saved opt-in and
+only run from the default branch. See [deployment setup](../deploy/README.md).
 
 ## Local prerequisites
 

@@ -95,7 +95,8 @@ Never manufacture model IDs in Rust or JavaScript. Tokens are a separate concern
 cryptographically random bearer tokens still originate in the crypto adapter. Provider
 identifiers and composite business keys belong in separate uniquely constrained columns.
 
-After embedded migrations, every startup runs `validate_model_conventions()`. It
+After embedded migrations, Docker startup (or the explicit Lambda migration invocation)
+runs `validate_model_conventions()`. It
 checks every table in the application's current schema for its generated UUID primary
 key, deletion columns, required enabled triggers, and companion history table. A new
 model that omits `protect_model` prevents startup and fails the migration integration
@@ -197,6 +198,8 @@ a superuser/owner can alter tables, functions, triggers, or session settings. In
 production, use trusted migration credentials for schema changes and a separate runtime
 role with only SELECT/INSERT/UPDATE on models, SELECT/INSERT on companions, and sequence-free
 UUID defaults. It must have no schema CREATE, table ownership, TRUNCATE, or DDL privileges.
-The bundled startup migration mode uses an owner connection; separating migration
-execution/roles is a deployment responsibility. Audit exports to independent immutable
+The Docker startup migration mode uses an owner connection; separating migration
+execution/roles is a deployment responsibility. The Lambda template separates the
+migration connection from the API/mail connection, but runtime grants must still be
+provisioned by the database operator. Audit exports to independent immutable
 storage are a further extension when protection against database administrators is needed.

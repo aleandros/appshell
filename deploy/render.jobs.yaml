@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: appshell-api
+    runtime: docker
+    autoDeployTrigger: 'off'
+    plan: free
+    # Background worker uses a separately billed Render plan.
+    healthCheckPath: /ready
+    envVars:
+      - key: RUN_MODE
+        value: api
+      - key: JOB_BACKEND
+        value: postgres
+      - key: APP_ENV
+        value: production
+      - key: APP_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: MAIL_MODE
+        value: resend
+      - key: MAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+  - type: worker
+    name: appshell-worker
+    runtime: docker
+    plan: starter
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: RUN_MODE
+        value: worker
+      - key: JOB_BACKEND
+        value: postgres
+      - key: APP_ENV
+        value: production
+      - key: APP_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: MAIL_MODE
+        value: resend
+      - key: MAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false

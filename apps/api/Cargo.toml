@@ -8,7 +8,19 @@ default-run = "appshell-api"
 [lints]
 workspace = true
 
+[features]
+lambda = ["dep:lambda_http", "dep:aws-config", "dep:aws-sdk-sqs"]
+
+[[bin]]
+name = "appshell-lambda"
+path = "src/bin/lambda.rs"
+required-features = ["lambda"]
+
 [dependencies]
+aws-config = { version = "1", optional = true, default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-sqs = { version = "1", optional = true }
+
+lambda_http = { version = "1", optional = true, default-features = false, features = ["apigw_http"] }
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1"] }
 appshell-domain = { path = "../domain" }
 axum = { version = "0.8", features = ["macros"] }

@@ -7,8 +7,14 @@ use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub fn connect(url: &str) -> Result<DbPool> {
+    let max_size = std::env::var("DB_POOL_SIZE").map_or(8, |value| {
+        value
+            .parse::<u32>()
+            .expect("DB_POOL_SIZE must be a positive integer")
+    });
+    assert!(max_size > 0, "DB_POOL_SIZE must be a positive integer");
     Pool::builder()
-        .max_size(8)
+        .max_size(max_size)
         .min_idle(Some(0))
         .idle_timeout(Some(std::time::Duration::from_secs(60)))
         .connection_timeout(std::time::Duration::from_secs(5))

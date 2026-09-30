@@ -1,0 +1,14 @@
+FROM rust:1-bookworm AS build
+WORKDIR /app
+COPY Cargo.toml Cargo.lock clippy.toml ./
+COPY apps/api apps/api
+COPY apps/domain apps/domain
+RUN cargo build --release --locked --features lambda --bin appshell-lambda
+
+# The Rust runtime talks directly to the Lambda Runtime API. Keep libpq and
+# system CA certificates alongside the binary; no Node runtime or web server.
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/target/release/appshell-lambda /usr/local/bin/appshell-lambda
+ENV RUST_LOG=appshell_api=info
+ENTRYPOINT ["/usr/local/bin/appshell-lambda"]

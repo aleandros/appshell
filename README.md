@@ -7,6 +7,7 @@ Licensed under [MIT](LICENSE). See [AGENTS.md](AGENTS.md) for repository convent
 ## Start locally
 
 Requires Node 22.12+ and Docker Desktop. A local Rust installation is optional.
+`npm ci` installs the repository Git hooks automatically (see below).
 
 ```sh
 npm ci
@@ -18,12 +19,38 @@ Open **http://localhost:5173**. The API runs at port 8080; Postgres is bound to 
 
 If you have Rust and libpq installed, use `docker compose up -d db mailpit`, copy `.env.example` to `.env`, and run `cargo run --bin appshell-api` instead. Do not run both API processes on port 8080. After Rust edits, restart the Compose API with `docker compose restart api` (the development command recompiles on startup).
 
+## Start a new app
+
+Create a repository from this starter, then run `npm ci` and `npm run setup`.
+Choose Docker/Render or Lambda/Neon, with optional background jobs. Render is the
+managed hosting service targeted by the Docker convenience command. Both modes
+use PostgreSQL and the same Rust business logic; Lambda serves the API behind a
+static React frontend on S3/CloudFront.
+
+For noninteractive setup, choose one:
+
+```sh
+npm run setup -- --mode docker --name my-app
+npm run setup -- --mode lambda --name my-app --region us-east-1
+```
+
+Setup saves non-secret settings in `appshell.deploy.json` without provisioning
+cloud resources. Run `npm run deploy:plan` to see the required provider resources,
+credentials, and release steps. Repeat setup as you add resource IDs, then commit
+the configuration and run `npm run deploy` from a clean checkout. Render releases
+require the commit to be pushed to the linked repository first. Credentials stay
+in provider settings, your local environment, or GitHub's secret store. See the
+[setup and deployment guide](deploy/README.md).
+
+GitHub can deploy the saved mode after all checks pass. Automatic deployment is
+opt-in; manual releases use the **Checks** workflow's **deploy** input.
+
 ## Included
 
 - Public landing and pricing sections, protected organization workspace, overview, team, billing, account settings, and workspace creation.
 - Responsive semantic controls, keyboard focus, reduced-motion support, light/dark/system appearance, loading skeletons, retry states, validation, empty states, and route error boundaries.
 - Axum API; utoipa OpenAPI derived from Rust DTOs; generated TypeScript contract; strict TypeScript, TanStack Router and Query, Zod response validation, React StrictMode, Tailwind 4.
-- PostgreSQL through Diesel with a bounded r2d2 connection pool. Database and Argon2 work runs on blocking workers, off the async HTTP executor. Embedded, versioned migrations run at startup under a Postgres advisory lock.
+- PostgreSQL through Diesel with a bounded r2d2 connection pool. Database and Argon2 work runs on blocking workers, off the async HTTP executor. Embedded, versioned migrations run under a Postgres advisory lock: at Docker startup or through the private migration Lambda during deployment.
 - Email/password signup and login; verification and resend; password recovery and authenticated password change; confirmed email change; logout. Password/email changes revoke existing sessions and outstanding action tokens.
 - Hashed opaque sessions in HttpOnly cookies, expiring hashed single-use action tokens, exact-origin checks for writes, persistent rate limits, verified-email gates, and organization authorization on every tenant endpoint.
 - Separate installation admin console at `/admin`, with script-only first-admin bootstrap, account operations, suspension/restoration, and user change history.
@@ -31,8 +58,9 @@ If you have Rust and libpq installed, use `docker compose up -d db mailpit`, cop
 - Multiple organizations per user; owner/admin/member roles; expiring, revocable invitations; email-bound acceptance; transactional seat reservations and protection against concurrent acceptance.
 - Free/Pro organization subscriptions and server-side seat entitlements. Optional Stripe Checkout, billing portal, and signed/idempotent subscription webhooks. Free works without a payment account.
 - Retryable transactional mail outbox with branded HTML/plain-text templates, Mailpit SMTP delivery locally, and Resend HTTPS delivery in production.
+- Optional background jobs using Postgres with a separate Rust worker, or SQS-triggered Lambda. Email is the first shared handler; see [background jobs](docs/background-jobs.md).
 - Shared `@appshell/ui` component library and Storybook with light/dark/system previews, interaction tests, and accessibility checks.
-- Docker image, Render blueprint, CI, account lifecycle integration tests, and desktop/mobile browser tests with accessibility checks.
+- Docker and Lambda images, Render blueprints, AWS SAM infrastructure, setup/deploy commands, Git hooks, GitHub checks and optional releases, account lifecycle integration tests, and desktop/mobile browser tests with accessibility checks.
 
 ## Architecture and modes
 
@@ -42,8 +70,10 @@ See [Architecture and executable standards](docs/architecture.md) for dependency
 apps/domain/              Pure business rules, independent of API and infrastructure
 apps/api/src/
   http/                   Axum adapters and middleware
-  contexts/               Identity, organizations, and billing services
-  infrastructure/         Repositories, Postgres, crypto, Stripe, and mail
+  contexts/               Identity, organizations, billing, and admin services
+  infrastructure/         Repositories, Postgres, crypto, providers, and job transports
+  jobs.rs                 Shared job dispatch for Docker and Lambda workers
+  bin/lambda.rs           Optional Lambda API, workers, and migration entry points
 apps/web/src/
   app/                    Workspace shell and application composition
   features/               Public feature APIs and query options
@@ -60,11 +90,55 @@ openapi.json              Generated by the Rust export binary
 | ------------------ | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Combined (default) | `RUN_MODE=combined`, `STATIC_DIR=/app/public`                                         | One process serves React, API, and mail worker. Smallest hosting footprint. |
 | Split frontend/API | Static frontend with `/api` reverse proxy; API `RUN_MODE=combined`, omit `STATIC_DIR` | Independent frontend delivery while the API also delivers mail.             |
+| Serverless         | Static React on S3/CloudFront, Lambda API/mail, Neon Postgres                         | Request-driven compute; [setup and tradeoffs](deploy/lambda/README.md).     |
 | Separate workers   | API `RUN_MODE=api`; one or more processes `RUN_MODE=worker`                           | Scale request handling and email delivery independently.                    |
 
-Sessions, rate limits, invitations, subscriptions, and jobs live in Postgres; API replicas don't depend on sticky sessions or local disk. Mail workers claim jobs using `FOR UPDATE SKIP LOCKED`. Size the database and total connection count before adding replicas (each process currently has an 8-connection pool).
+Sessions, rate limits, invitations, subscriptions, and jobs live in Postgres; API replicas don't depend on sticky sessions or local disk. Mail workers claim jobs using `FOR UPDATE SKIP LOCKED`. Size the database and total connection count before adding replicas (default `DB_POOL_SIZE=8`; the Lambda template uses 2).
 
 Use **one browser origin** with an `/api` proxy when splitting deployments. Alternatively, `VITE_API_URL=https://api.example.com` works with `APP_URL=https://app.example.com` on HTTPS **same-site subdomains**. Unrelated hosting domains are intentionally unsupported with the default SameSite=Lax cookies. Do not weaken cookie policy to work around that; configure a proxy or common domain.
+
+Choose Docker or Lambda during deployment setup; both use the same React app, Rust
+services, and Postgres schema. You can change deployment later. DynamoDB is deferred
+because it requires a separate persistence design, not a configuration switch.
+
+ECS/Fargate can run the Docker image with separate API and worker services, but
+ECS provisioning and deployment automation are not included. The convenience
+command currently targets Render for Docker and AWS SAM for Lambda.
+
+## Optional background jobs
+
+Jobs are disabled by default; email still uses its existing transactional outbox.
+To enable the shared job handler, add the option to setup:
+
+```sh
+npm run setup -- --mode docker --jobs postgres
+# Or, for Lambda:
+npm run setup -- --mode lambda --jobs sqs
+```
+
+- **Docker:** use `deploy/render.jobs.yaml` for an API and a separate Rust worker,
+  both sharing Postgres. Save the web and worker service IDs during setup. Render's
+  worker is separately billed; the default blueprint keeps the combined process.
+- **Lambda:** deployment creates an SQS queue, dead-letter queue, worker Lambda,
+  and recovery dispatcher. The API attempts immediate publication after commit;
+  the dispatcher polls every 15 minutes, so idle Neon compute still wakes periodically.
+
+Email is the first handler in both modes. Account changes, email, and job records
+commit together in Postgres; SQS carries only job IDs. Leases, bounded retries,
+failure tracking, and duplicate handling provide at-least-once execution.
+New handlers must make their effects idempotent.
+
+Use the separate Postgres worker locally for either deployment target:
+
+```sh
+docker compose -f compose.yaml -f compose.jobs.yaml up -d db api worker
+npm run dev
+```
+
+Restart both `api` and `worker` with those Compose files after Rust edits.
+See [background jobs](docs/background-jobs.md) for adding handlers, retry behavior,
+monitoring, and safely disabling the feature. Setup saves the deployment choice;
+it does not alter existing Render service environments.
 
 ## Administration and data patterns
 
@@ -114,13 +188,39 @@ Cargo scripts use local Rust when available and otherwise Docker. Set `APPSHELL_
 
 The integration suite creates its own randomly named schema and removes it after success. Browser and mail tests create throwaway accounts in your local database; captured messages remain available in Mailpit for inspection. CI runs both and rejects uncommitted contract drift. OpenAPI is also available at `/api/openapi.json`; `/health` is liveness and `/ready` checks the database. Error responses use `{code,message}`; generated success DTOs and runtime Zod schemas are both checked by TypeScript.
 
+## Git hooks and GitHub workflows
+
+`npm ci` installs `.githooks` using repository-local `core.hooksPath`. For an existing
+checkout, run `npm run hooks:install`. Existing custom hook paths are preserved;
+call `npm run check:commit` and `npm run check:push` from those hooks yourself.
+CI and source archives skip installation. Set `APPSHELL_SKIP_HOOKS=1` during install
+if your environment manages hooks separately.
+
+- **Pre-commit:** formatting (Prettier/rustfmt), TypeScript, frontend/script lint,
+  and frontend architecture. Checks are read-only and inspect the working tree,
+  including unstaged changes; review partially staged commits yourself.
+- **Pre-push:** full `npm run check`, unit tests, Rust/Postgres integration tests
+  including Lambda support, generated API contract drift, and the frontend build.
+  Start the Compose database first. Native Rust also requires `TEST_DATABASE_URL`.
+- **GitHub Checks:** the full application suite, browser/mail/Storybook tests,
+  contract drift, and both Docker image builds. **Infrastructure:** validates the
+  Lambda SAM/CloudFormation template. The optional **Deploy** workflow uses your saved
+  configuration only after all checks pass; [configure releases](deploy/README.md#github-release-behavior).
+
+Hooks never format, stage, stash, or commit files. Use `npm run format` to fix formatting.
+Browser/mail/Storybook tests remain in CI and `npm run verify`, so ordinary pushes
+need a database but not a running API or browser. Git hooks are local conveniences;
+configure required GitHub checks (`check`, both `container` matrix jobs, and
+the infrastructure validation job) in branch protection to enforce them centrally.
+
 ## Hosting for free
 
 The included `render.yaml` builds a single container on Render's free web service. Supply a hosted Postgres connection string (for example Neon), the exact HTTPS `APP_URL`, a verified Resend sender, and its API key. Use Postgres TLS in production: a provider connection string with `sslmode=verify-full` and its documented CA setup where available; never disable TLS certificate checks. The runtime includes CA certificates and libpq.
 
 Free is suitable for prototypes, with limits. [Render free services](https://render.com/docs/free) sleep after inactivity, have monthly usage caps, and block SMTP ports; their free Postgres expires after 30 days, so the blueprint deliberately uses an external database. [Neon's plan documentation](https://neon.com/docs/introduction/plans) describes its free quotas and scale-to-zero behavior. [Resend's limits](https://resend.com/docs/knowledge-base/account-quotas-and-limits) apply separately. Confirm current quotas when deploying; no free tier promises unlimited traffic or production availability. A custom sending domain may have a separate cost.
 
-Deploy by connecting your cloned repository to a Render Blueprint, then filling its secrets. Set `APP_ENV=production`; startup refuses insecure public URLs and requires Resend delivery. The image runs as a non-root user. Add your own domain and backup/monitoring policy as the app grows. No cloud resources are provisioned by this repository.
+Deploy by connecting your cloned repository to a Render Blueprint, then filling its secrets. Set `APP_ENV=production`; startup refuses insecure public URLs and requires Resend delivery. The image runs as a non-root user. Add your own domain and backup/monitoring policy as the app grows. Creating the Blueprint starts its initial deployment. For later releases through GitHub checks, disable Blueprint Auto Sync as described in the [deployment guide](deploy/README.md); commit-triggered service auto-deploys are already disabled in the blueprint. For AWS, the optional
+[Lambda template](deploy/lambda/README.md) provisions resources when you deploy it.
 
 ## Shared UI and Storybook
 
@@ -136,7 +236,7 @@ All five email types share `apps/api/src/infrastructure/email_template.rs`: veri
 
 `npm run test:mail` validates local SMTP acceptance, both message bodies, escaped content, and working action tokens through the API. Mailpit does **not** establish real inbox placement, sender reputation, SPF/DKIM/DMARC, or rendering in every mail client. Validate those with your configured provider and target clients before launch.
 
-Email delivery is transactional: account changes and the email job commit together. Resend receives an idempotency key per job. Failed deliveries retry every five minutes up to ten attempts; inspect `mail_outbox` for exhausted jobs and requeue after fixing delivery. Successful delivery scrubs both stored text and HTML bodies. Undelivered email bodies contain action links: protect database/backups and avoid exposing the outbox. In combined free hosting, mail delivery pauses while the service sleeps and resumes on wake. Use an always-on worker for time-sensitive delivery.
+Email delivery is transactional: account changes and the email job commit together. Resend receives an idempotency key per mail record. With optional jobs disabled, failed deliveries retry every five minutes up to ten attempts; inspect `mail_outbox` for exhausted mail. With jobs enabled, retries and failure state move to `background_jobs`; see [queue operations](docs/background-jobs.md). Successful delivery scrubs both stored text and HTML bodies. Undelivered email bodies contain action links: protect database/backups and avoid exposing the outbox. In combined free hosting, mail delivery pauses while the service sleeps and resumes on wake. Use an always-on worker for time-sensitive delivery.
 
 For paid subscriptions, create one recurring **flat-rate** Stripe price (not metered/per-seat), configure `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and `STRIPE_WEBHOOK_SECRET`, and enable the customer portal. Subscribe to `customer.subscription.created`, `.updated`, and `.deleted` at `/api/webhooks/stripe`. Use test mode first. Checkout copies the organization ID into subscription metadata; the webhook verifies its raw-body signature and timestamp, fetches the subscription from Stripe, and updates only the matching organization. Only an owner can open Checkout or the portal. The client redirect never grants entitlements. See [Stripe's webhook guide](https://docs.stripe.com/webhooks).
 

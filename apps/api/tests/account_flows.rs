@@ -105,6 +105,7 @@ async fn full_account_and_tenant_lifecycle() {
     let pool = db::connect(&format!("{url}{sep}options=-csearch_path%3D{schema}")).unwrap();
     db::migrate(pool.clone()).await.unwrap();
     let config = Config {
+        job_backend: appshell_api::config::JobBackend::Disabled,
         app_url: ORIGIN.into(),
         production: false,
         mail_mode: "console".into(),
@@ -149,6 +150,31 @@ async fn full_account_and_tenant_lifecycle() {
         );
     }
     let (owner, org) = signup(&app, "owner@example.com").await;
+    #[cfg(feature = "lambda")]
+    {
+        // API Gateway v2 puts cookies outside headers. Exercise the real Lambda
+        // request adapter so session and origin semantics survive the deployment change.
+        for (method, path, origin, expected) in [
+            ("GET", "/api/auth/session", ORIGIN, 200),
+            ("POST", "/api/auth/logout", "https://evil.example", 403),
+        ] {
+            let event = json!({
+                "version": "2.0", "routeKey": "ANY /{proxy+}",
+                "rawPath": path, "rawQueryString": "", "cookies": [owner],
+                "headers": {"origin": origin, "content-type": "application/json"},
+                "requestContext": {
+                    "routeKey": "ANY /{proxy+}", "stage": "$default",
+                    "requestId": "test", "timeEpoch": 0,
+                    "http": {"method": method, "path": path, "protocol": "HTTP/1.1", "sourceIp": "127.0.0.1", "userAgent": "test"}
+                },
+                "body": "{}", "isBase64Encoded": false
+            });
+            let request = lambda_http::request::from_str(&event.to_string()).unwrap();
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), expected, "Lambda {method} {path}");
+        }
+    }
+
     assert_eq!(
         read(&app, &format!("/api/organizations/{org}/team"), &owner)
             .await

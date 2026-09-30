@@ -8,6 +8,7 @@ mod admin;
 mod billing;
 mod health;
 mod identity;
+mod jobs;
 mod mail;
 mod organizations;
 /// One connection, shared by every repository participating in a use case.

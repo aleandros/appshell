@@ -35,3 +35,8 @@ Thumbs.db
 *~
 
 storybook-static/
+
+# Local AWS SAM build/deployment settings
+.aws-sam/
+samconfig.toml
+samconfig.yaml

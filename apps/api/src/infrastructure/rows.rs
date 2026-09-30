@@ -246,3 +246,20 @@ impl From<HistoryEntry> for crate::models::HistoryEntry {
         }
     }
 }
+
+#[derive(QueryableByName)]
+pub(crate) struct JobRow {
+    #[diesel(sql_type=SqlUuid)]
+    pub id: Uuid,
+    #[diesel(sql_type=diesel::sql_types::Jsonb)]
+    pub payload: serde_json::Value,
+    #[diesel(sql_type=diesel::sql_types::Integer)]
+    pub attempts: i32,
+    #[diesel(sql_type=BigInt)]
+    pub lease_version: i64,
+}
+#[derive(QueryableByName)]
+pub(crate) struct JobDone {
+    #[diesel(sql_type=diesel::sql_types::Bool)]
+    pub done: bool,
+}

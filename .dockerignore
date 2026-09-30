@@ -9,3 +9,7 @@ target
 **/playwright-report
 **/*.tsbuildinfo
 **/storybook-static
+
+.aws-sam
+samconfig.toml
+samconfig.yaml

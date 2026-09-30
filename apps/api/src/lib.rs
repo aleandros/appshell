@@ -2,10 +2,13 @@ mod infrastructure;
 use crate::infrastructure::repositories;
 pub mod config;
 mod contexts;
+pub mod jobs;
 pub use infrastructure::db;
 pub mod error;
 mod http;
 pub use infrastructure::mail;
+#[cfg(feature = "lambda")]
+pub use infrastructure::sqs;
 pub mod models;
 use axum::{
     Json, Router, middleware,
