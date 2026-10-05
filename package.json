@@ -10,11 +10,12 @@
   "scripts": {
     "dev": "npm run dev -w apps/web",
     "build": "npm run build -w apps/web",
-    "check": "npm run format:check && npm run check:web && npm run check:architecture && npm run check:rust",
+    "check": "npm run format:check && npm run check:web && npm run check:site && npm run check:architecture && npm run check:rust",
     "test": "node --test scripts/*.test.mjs && npm run test -w apps/web",
     "test:e2e": "node scripts/wait-for-api.mjs && npm run test:e2e -w apps/web",
     "generate:api": "docker compose run --rm --no-deps api cargo run --locked --bin export-openapi > openapi.json && npm run generate:api -w apps/web",
     "check:web": "npm run check -w apps/web && npm run lint:scripts && npm run check -w @appshell/ui",
+    "check:site": "eslint site/main.js --config site/eslint.config.mjs --max-warnings 0",
     "check:architecture": "node scripts/check-architecture.mjs && node scripts/rust.mjs test --locked --test architecture",
     "check:rust": "node scripts/rust.mjs clippy --workspace --all-targets --features lambda,ses --locked -- -D warnings && node scripts/rust.mjs clippy --workspace --all-targets --no-default-features --features dynamodb,lambda,ses --locked -- -D warnings",
     "format": "prettier --write . && node scripts/rust.mjs fmt --all",

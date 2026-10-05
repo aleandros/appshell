@@ -4,6 +4,20 @@ A reusable SaaS starting point: Rust, React, and a quiet, responsive workspace t
 
 Licensed under [MIT](LICENSE). See [AGENTS.md](AGENTS.md) for repository conventions and validation commands.
 
+## Project website
+
+The GitHub Pages landing page lives in [`site/`](site/index.html). It is a standalone
+static site, separate from the SaaS application, with no API or build step required.
+Preview it with `python3 -m http.server 4173 --directory site`, then open
+**http://localhost:4173**. Run `npm run check:site` after changing its JavaScript;
+the repository's Prettier check also covers the site.
+
+To publish, choose **GitHub Actions** under **Settings → Pages → Build and deployment**.
+The **GitHub Pages** workflow validates and deploys `site/` when its files change on
+`main`, or when manually dispatched. Pull requests validate without deploying.
+The project URL is **https://aleandros.github.io/appshell/**. Forks use their own
+owner/repository URL; update the site's GitHub links when rebranding.
+
 ## Start locally
 
 This quickstart uses **Docker + PostgreSQL**, the default. For a fully serverless

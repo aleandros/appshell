@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>AppShell — skip the boilerplate. Build your thing.</title>
+    <meta
+      name="description"
+      content="An open-source Rust + React SaaS starter with authentication, organizations, billing, and a responsive workspace. Deploy with Docker or go serverless on AWS."
+    />
+    <meta property="og:title" content="AppShell — build your thing." />
+    <meta
+      property="og:description"
+      content="Rust at the core. React at the edges. The foundation for your next SaaS, already connected."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="./mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./style.css" />
+    <script src="./main.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container nav-inner">
+        <a class="brand" href="#" aria-label="AppShell home"
+          ><img src="./mark.svg" width="28" height="28" alt="" />app<span>shell</span
+          ><span class="brand-cursor" aria-hidden="true">_</span></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="#features">the essentials</a>
+          <a href="#architecture">architecture</a>
+          <a href="#start">quickstart</a>
+          <a href="https://github.com/aleandros/appshell" class="nav-github"
+            >GitHub <span aria-hidden="true">↗</span></a
+          >
+        </nav>
+        <button class="theme-button" id="theme" hidden aria-label="Theme: system. Switch to dark.">
+          ◐
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero container" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <div class="eyebrow">
+            <span class="status-dot"></span> OPEN SOURCE. YOURS TO BUILD ON.
+          </div>
+          <h1 id="hero-title">
+            Skip the boilerplate.<br />Build <span class="accent">your thing.</span
+            ><span class="cursor" aria-hidden="true">_</span>
+          </h1>
+          <p class="hero-description">
+            Auth, teams, billing, and the workspace around them. A thoughtful
+            <strong>Rust + React</strong> foundation, so your first commit can be about your
+            product.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="#start"
+              >Start building <span aria-hidden="true">↗</span></a
+            ><a class="button secondary" href="https://github.com/aleandros/appshell"
+              >Explore the source <span aria-hidden="true">→</span></a
+            >
+          </div>
+          <div class="hero-meta">
+            <a href="https://github.com/aleandros/appshell/blob/main/LICENSE">MIT licensed</a
+            ><span aria-hidden="true">/</span><span>Docker or serverless</span
+            ><span aria-hidden="true">/</span><span>No platform lock-in</span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-label="Illustrative AppShell workspace and setup preview">
+          <div class="window workspace-preview">
+            <div class="window-bar">
+              <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+              <span>your-next-big-thing / overview</span
+              ><span class="preview-label">UI PREVIEW</span>
+            </div>
+            <div class="workspace-body">
+              <div class="preview-sidebar">
+                <div class="preview-brand">
+                  <img src="./mark.svg" width="22" height="22" alt="" /> Your workspace
+                </div>
+                <div class="preview-nav active"><span aria-hidden="true">▦</span> Overview</div>
+                <div class="preview-nav"><span aria-hidden="true">♧</span> Team</div>
+                <div class="preview-nav"><span aria-hidden="true">▤</span> Billing</div>
+                <div class="preview-nav"><span aria-hidden="true">⚙</span> Settings</div>
+                <div class="preview-profile">
+                  <span class="avatar">Y</span
+                  ><span>Your account<br /><small>Make yourself at home</small></span>
+                </div>
+              </div>
+              <div class="preview-content">
+                <div class="preview-breadcrumb">Workspace <span>/</span> Overview</div>
+                <div class="preview-heading">
+                  A head start, built in.<span class="plan-badge">FREE PLAN</span>
+                </div>
+                <p>Your product starts here.</p>
+                <div class="preview-stats">
+                  <div>
+                    <span>Workspace</span><strong>Ready <i class="status-dot"></i></strong>
+                  </div>
+                  <div>
+                    <span>Your role</span><strong>Owner <span class="tiny-icon">↗</span></strong>
+                  </div>
+                </div>
+                <div class="preview-checklist">
+                  <div>
+                    <span class="check">✓</span><span>Account &amp; authentication</span
+                    ><small>connected</small>
+                  </div>
+                  <div>
+                    <span class="check">✓</span><span>Organization &amp; team</span
+                    ><small>connected</small>
+                  </div>
+                  <div>
+                    <span class="check">✓</span><span>Billing &amp; subscriptions</span
+                    ><small>connected</small>
+                  </div>
+                  <div class="your-feature">
+                    <span>+</span><span>Your next feature</span><small>up to you</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="window terminal-preview">
+            <div class="window-bar">
+              <span class="terminal-symbol">&gt;_</span><span>~/your-next-big-thing</span
+              ><span class="terminal-caption">LOCAL DEVELOPMENT</span>
+            </div>
+            <div class="terminal-content">
+              <div><span class="muted">$</span> npm run dev</div>
+              <div>
+                <span class="check">✓</span> <span class="muted">Rust API</span
+                ><span class="terminal-detail">localhost:8080</span>
+              </div>
+              <div>
+                <span class="check">✓</span> <span class="muted">React workspace</span
+                ><span class="terminal-detail">localhost:5173</span>
+              </div>
+              <div class="terminal-last">
+                <span class="accent">→</span> The foundation is here. Make it yours.<span
+                  class="terminal-cursor"
+                  aria-hidden="true"
+                  >▌</span
+                >
+              </div>
+            </div>
+          </div>
+          <div class="visual-caption">
+            <span aria-hidden="true">↳</span> the repetitive parts, already connected.
+          </div>
+        </div>
+      </section>
+
+      <div class="stack-strip">
+        <div class="container stack-inner">
+          <span class="stack-label">A STACK YOU CAN OWN</span><span>Rust <small>/ Axum</small></span
+          ><span>React <small>/ TypeScript</small></span
+          ><span>PostgreSQL <small>or DynamoDB</small></span
+          ><span>Tailwind <small>/ Storybook</small></span>
+        </div>
+      </div>
+
+      <section id="features" class="section container">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">01 / THE ESSENTIALS</div>
+            <h2>Start where the<br />interesting work begins.</h2>
+          </div>
+          <p>
+            Every SaaS needs the same foundation.<br />This one comes with the connections made.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature">
+            <div class="feature-top"><span class="feature-icon">[↪]</span><span>01</span></div>
+            <h3>The whole account lifecycle.</h3>
+            <p>
+              Signup, email verification, password recovery, and confirmed email changes. Cookie
+              sessions and single-use tokens, already wired.
+            </p>
+            <div class="feature-tag">identity / sessions / recovery</div>
+          </article>
+          <article class="feature">
+            <div class="feature-top"><span class="feature-icon">[♧]</span><span>02</span></div>
+            <h3>Teams are a first-class feature.</h3>
+            <p>
+              Multiple organizations, owner/admin/member roles, and email-bound invitations. Tenant
+              access is enforced on the server.
+            </p>
+            <div class="feature-tag">organizations / roles / invitations</div>
+          </article>
+          <article class="feature">
+            <div class="feature-top"><span class="feature-icon">[$]</span><span>03</span></div>
+            <h3>A path from free to paid.</h3>
+            <p>
+              Free and Pro plans, seat entitlements, and optional Stripe Checkout and billing
+              portal. Signed, idempotent subscription webhooks.
+            </p>
+            <div class="feature-tag">subscriptions / seats / stripe</div>
+          </article>
+          <article class="feature">
+            <div class="feature-top"><span class="feature-icon">[▦]</span><span>04</span></div>
+            <h3>A workspace with good defaults.</h3>
+            <p>
+              Responsive React screens, shared controls, and light, dark, and system themes.
+              Loading, empty, and error states included.
+            </p>
+            <div class="feature-tag">react / semantic tokens / storybook</div>
+          </article>
+          <article class="feature">
+            <div class="feature-top"><span class="feature-icon">[↗]</span><span>05</span></div>
+            <h3>Email that survives a retry.</h3>
+            <p>
+              A transactional outbox, branded HTML and plain text, and Mailpit for local
+              development. Resend or SES for production delivery.
+            </p>
+            <div class="feature-tag">outbox / mail / optional jobs</div>
+          </article>
+          <article class="feature">
+            <div class="feature-top"><span class="feature-icon">[✓]</span><span>06</span></div>
+            <h3>Guardrails in the repository.</h3>
+            <p>
+              Generated API types, Zod validation, architecture checks, and browser tests. A
+              separate admin console and redacted change history.
+            </p>
+            <div class="feature-tag">contracts / checks / administration</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="architecture" class="architecture-section">
+        <div class="container section">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">02 / UNDER THE SHELL</div>
+              <h2>Clear boundaries.<br /><span class="muted">Room for your ideas.</span></h2>
+            </div>
+            <p>
+              A modular monolith with pure domain rules.<br />One codebase, without one giant ball
+              of code.
+            </p>
+          </div>
+          <div
+            class="architecture-diagram"
+            role="img"
+            aria-label="React workspace calls Axum HTTP adapters through a generated OpenAPI contract with Zod validation. HTTP adapters call context services, which use pure Rust domain rules and infrastructure repositories and providers."
+          >
+            <div class="diagram-header">
+              <span><span class="status-dot"></span> appshell / architecture</span
+              ><span>DEPENDENCIES, MADE EXPLICIT</span>
+            </div>
+            <div class="diagram-flow">
+              <div class="diagram-node">
+                <span class="node-path">apps/web</span>
+                <h3>React workspace</h3>
+                <p>Pages · feature APIs · shared UI</p>
+                <div class="node-tags"><span>TanStack</span><span>TypeScript</span></div>
+              </div>
+              <div class="diagram-connector">
+                <span>OpenAPI</span><b aria-hidden="true">→</b><span>+ Zod</span>
+              </div>
+              <div class="diagram-node">
+                <span class="node-path">apps/api/src/http</span>
+                <h3>HTTP adapters</h3>
+                <p>Routes · cookies · responses</p>
+                <div class="node-tags"><span>Axum</span><span>Rust</span></div>
+              </div>
+              <div class="diagram-connector"><span>use cases</span><b aria-hidden="true">→</b></div>
+              <div class="diagram-node services-node">
+                <span class="node-path">apps/api/src/contexts</span>
+                <h3>Context services</h3>
+                <p>Identity · organizations · billing · admin</p>
+                <div class="node-tags"><span>One unit of work</span></div>
+              </div>
+            </div>
+            <div class="diagram-foundation">
+              <span class="foundation-label"
+                >CONTEXT SERVICES DEPEND ON <span aria-hidden="true">↘</span></span
+              >
+              <div>
+                <strong>Pure domain rules</strong><span>Business decisions. No I/O.</span
+                ><code>apps/domain</code>
+              </div>
+              <div>
+                <strong>Infrastructure</strong><span>Repositories, providers, mail.</span
+                ><code>apps/api/src/infrastructure</code>
+              </div>
+            </div>
+          </div>
+          <a
+            class="text-link"
+            href="https://github.com/aleandros/appshell/blob/main/docs/architecture.md"
+            >Read the architecture guide <span aria-hidden="true">↗</span></a
+          >
+        </div>
+      </section>
+
+      <section id="deploy" class="section container">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">03 / CHOOSE YOUR HOME</div>
+            <h2>Your app. Your infrastructure.</h2>
+          </div>
+          <p>The same features and business rules.<br />Pick the starting point that fits.</p>
+        </div>
+        <div class="deployment-grid">
+          <article class="deployment-card">
+            <div class="deployment-heading">
+              <span class="feature-icon">[▱]</span><span class="pill">THE DEFAULT</span>
+            </div>
+            <h3>Keep it together.</h3>
+            <p>
+              A containerized Rust API, React frontend, and mail worker backed by PostgreSQL. Start
+              with Docker Compose; the included deployment tooling targets Render.
+            </p>
+            <div class="deployment-stack">
+              <span>Docker</span><span>PostgreSQL</span><span>Render</span>
+            </div>
+            <a
+              class="text-link"
+              href="https://github.com/aleandros/appshell/blob/main/deploy/README.md"
+              >Docker deployment guide ↗</a
+            >
+          </article>
+          <article class="deployment-card">
+            <div class="deployment-heading">
+              <span class="feature-icon">[λ]</span><span class="pill">FULLY SERVERLESS</span>
+            </div>
+            <h3>Let AWS run it.</h3>
+            <p>
+              API Gateway and Lambda, DynamoDB persistence, SQS jobs, SES email, and S3/CloudFront
+              for the frontend. Provisioned with AWS SAM.
+            </p>
+            <div class="deployment-stack">
+              <span>Lambda</span><span>DynamoDB</span><span>AWS SAM</span>
+            </div>
+            <a
+              class="text-link"
+              href="https://github.com/aleandros/appshell/blob/main/docs/dynamodb.md"
+              >Serverless deployment guide ↗</a
+            >
+          </article>
+        </div>
+        <p class="deployment-note">
+          Prefer Lambda with PostgreSQL?
+          <a href="https://github.com/aleandros/appshell/blob/main/deploy/lambda/README.md"
+            >That works too.</a
+          >
+          Choose storage when starting a new app; switching later requires a data migration.
+        </p>
+      </section>
+
+      <section id="start" class="start-section">
+        <div class="container start-layout">
+          <div>
+            <div class="eyebrow">04 / FROM HERE, IT’S YOURS</div>
+            <h2>New repo.<br />Fresh possibilities.</h2>
+            <p>
+              Clone the starter, pick your deployment mode, and make it yours. Product identity and
+              design tokens have a place of their own.
+            </p>
+            <div class="requirements">
+              <span class="status-dot"></span> Node 22.12+ &amp; Docker Desktop<br /><span
+                class="requirements-detail"
+                >Local Rust installation optional.</span
+              >
+            </div>
+            <a class="text-link" href="https://github.com/aleandros/appshell#start-a-new-app"
+              >Read the full setup guide ↗</a
+            >
+          </div>
+          <div class="quickstart window">
+            <div class="window-bar">
+              <span class="terminal-symbol">&gt;_</span><span>let’s build something</span>
+            </div>
+            <fieldset class="mode-picker">
+              <legend class="sr-only">Local setup mode</legend>
+              <label
+                ><input type="radio" name="mode" value="docker" checked /><span
+                  >Docker + Postgres</span
+                ></label
+              ><label
+                ><input type="radio" name="mode" value="serverless" /><span
+                  >Serverless AWS</span
+                ></label
+              >
+            </fieldset>
+            <div class="code-panel" id="docker-setup">
+              <div class="code-heading">
+                <span># your terminal</span
+                ><button class="copy-button" data-copy="docker-code" hidden>Copy commands</button>
+              </div>
+              <pre
+                tabindex="0"
+                aria-label="Docker and PostgreSQL setup commands"
+              ><code id="docker-code">git clone https://github.com/aleandros/appshell.git my-app
+cd my-app
+npm ci
+npm run setup -- --mode docker --name my-app
+docker compose up -d db api
+npm run dev</code></pre>
+              <div class="code-footer">
+                <span class="check">↗</span> Open localhost:5173 <span>Mailpit on :8025</span>
+              </div>
+            </div>
+            <div class="code-panel" id="serverless-setup">
+              <div class="code-heading">
+                <span># your terminal</span
+                ><button class="copy-button" data-copy="serverless-code" hidden>
+                  Copy commands
+                </button>
+              </div>
+              <pre
+                tabindex="0"
+                aria-label="Serverless AWS setup commands"
+              ><code id="serverless-code">git clone https://github.com/aleandros/appshell.git my-app
+cd my-app
+npm ci
+npm run setup -- --mode lambda --storage dynamodb --name my-app --region us-east-1
+docker compose -f compose.dynamodb.yaml up -d
+npm run dev</code></pre>
+              <div class="code-footer">
+                <span class="check">↗</span> Runs locally without an AWS account.
+              </div>
+            </div>
+            <p class="setup-note">
+              Setup saves configuration; it doesn’t provision cloud resources. Apple Silicon: add
+              <code>--architecture arm64</code> to serverless setup for native Lambda builds.
+            </p>
+            <p id="copy-status" class="sr-only" role="status"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing container">
+        <div class="eyebrow">LESS SETUP. MORE SHIPPING.</div>
+        <h2>The shell is here.<br /><span class="accent">The next part is yours.</span></h2>
+        <a class="button primary" href="https://github.com/aleandros/appshell"
+          >Build with AppShell <span aria-hidden="true">↗</span></a
+        >
+        <p>Open source. MIT licensed. Made to be made your own.</p>
+      </section>
+    </main>
+    <footer class="container footer">
+      <a class="brand" href="#"
+        ><img src="./mark.svg" width="24" height="24" alt="" />app<span>shell</span
+        ><span class="brand-cursor" aria-hidden="true">_</span></a
+      ><span>A starting point, not a finish line.</span>
+      <div>
+        <a href="https://github.com/aleandros/appshell#readme">Docs ↗</a
+        ><a href="https://github.com/aleandros/appshell">GitHub ↗</a
+        ><a href="https://github.com/aleandros/appshell/blob/main/LICENSE">MIT license</a>
+      </div>
+    </footer>
+  </body>
+</html>
