@@ -156,16 +156,31 @@ before sustained use. Local validation and CI checks do not deploy. The explicit
 and optional GitHub Deploy job do provision/update AWS resources; they require your
 credentials and the saved deployment settings.
 
-## Why not DynamoDB?
+## DynamoDB alternative
 
-DynamoDB is feasible as a separate backend implementation, but not as a database URL
-switch. Current behavior depends on relational transactions, uniqueness and foreign
-keys, row/advisory locks, PostgreSQL UUID generation, and soft-delete/history triggers.
-Supporting DynamoDB would require new access patterns, conditional writes and
-transaction coordination, audit/deletion enforcement, outbox claims, and a second
-integration/tenant-isolation suite. Keeping Neon preserves these guarantees while
-making the application compute serverless.
+New installations can choose `npm run setup -- --mode lambda --storage dynamodb`.
+This provisions DynamoDB and uses SES, with SQS jobs enabled by default. It does
+not need Neon or a Resend secret. The same SAM template supports both backends;
+the image must be built for the matching storage feature. See the
+[DynamoDB guide](../../docs/dynamodb.md) for local development, LocalStack SAM E2E,
+admin bootstrap, persistence guarantees, costs, and deployment prerequisites.
+The PostgreSQL instructions above remain applicable to the default backend.
 
 References: [AWS Rust runtime](https://docs.aws.amazon.com/lambda/latest/dg/lambda-rust.html),
 [Lambda lifecycle and freezing](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html),
 [SAM scheduled invocations](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-schedule.html).
+
+## Native ARM builds and cloud smoke tests
+
+Lambda setup accepts `--architecture arm64` (default: `x86_64`). The release tool
+builds the matching Docker platform and sets SAM's `Architecture` parameter; image
+tags distinguish ARM from AMD64. On Apple Silicon this avoids QEMU compilation.
+For manual deployment, pair `--platform linux/arm64` with `Architecture=arm64`.
+CI builds both Lambda storage variants on native AMD64 and ARM runners.
+
+`AWS_PROFILE=personal npm run test:aws -- --architecture arm64` creates a temporary
+DynamoDB SAM stack, tests the deployed CloudFront app and Streams/SQS pipeline,
+and removes its retained test resources. It incurs normal AWS charges and skips
+SES delivery. See the [AWS smoke-test guide](../../docs/dynamodb.md#opt-in-aws-smoke-test)
+for requirements, coverage, and cleanup. Normal development uses DynamoDB Local
+and Mailpit without an AWS account or LocalStack token.

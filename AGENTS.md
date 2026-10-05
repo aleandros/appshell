@@ -56,9 +56,10 @@ files, database dumps, or development email logs.
   verified-email gates, and subscription entitlements are enforced server-side.
 - Preserve origin checks, secure session handling, single-use token semantics,
   transaction boundaries, and provider signature/idempotency checks.
-- Read `docs/data-patterns.md` for persisted models. Every model needs a PostgreSQL-generated
-  UUID primary key and `protect_model` registration for deletion columns and companion
-  history. Filter soft-deleted rows in normal queries; attribute authenticated writes
+- Read `docs/data-patterns.md` for PostgreSQL models and `docs/dynamodb.md` for DynamoDB.
+  PostgreSQL models need database-generated UUIDs and `protect_model` registration.
+  DynamoDB models generate UUIDs only in their persistence adapter and commit redacted
+  history with conditional writes; preserve aggregate guards for query-based decisions. Filter soft-deleted rows in normal queries; attribute authenticated writes
   inside the transaction. Never add application hard deletion or audit secret values.
 - Add a new migration for schema changes; do not rewrite migrations already
   used by an installation. Keep migrations compatible with startup execution.
@@ -76,6 +77,7 @@ span the stack. Documentation-only edits do not need application tests.
 npm run check
 npm run format # Apply formatting when needed
 npm test
+npm run test:dynamodb # Docker DynamoDB Local; Rust runner auto-selected
 npm run build
 docker compose run --rm --no-deps api cargo fmt --all -- --check
 docker compose run --rm --no-deps api cargo clippy --all-targets -- -D warnings

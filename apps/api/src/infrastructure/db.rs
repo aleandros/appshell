@@ -48,3 +48,12 @@ pub async fn migrate(pool: DbPool) -> Result<()> {
     })
     .await
 }
+
+pub async fn from_env() -> Result<DbPool> {
+    tokio::task::spawn_blocking(|| {
+        let url = std::env::var("DATABASE_URL").map_err(ApiError::internal)?;
+        connect(&url)
+    })
+    .await
+    .map_err(ApiError::internal)?
+}

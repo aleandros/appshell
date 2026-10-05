@@ -155,6 +155,48 @@ async fn deliver(state: &AppState, mail: &Mail) -> Result<()> {
                 .map_err(ApiError::internal)?;
             Ok(())
         }
+        #[cfg(feature = "ses")]
+        "ses" => {
+            use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message};
+            let content = |text: &str| {
+                Content::builder()
+                    .data(text)
+                    .charset("UTF-8")
+                    .build()
+                    .map_err(ApiError::internal)
+            };
+            let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+                .timeout_config(
+                    aws_config::timeout::TimeoutConfig::builder()
+                        .operation_timeout(std::time::Duration::from_secs(20))
+                        .build(),
+                )
+                .load()
+                .await;
+            aws_sdk_sesv2::Client::new(&config)
+                .send_email()
+                .from_email_address(&state.config.mail_from)
+                .destination(Destination::builder().to_addresses(&mail.recipient).build())
+                .content(
+                    EmailContent::builder()
+                        .simple(
+                            Message::builder()
+                                .subject(content(&mail.subject)?)
+                                .body(
+                                    Body::builder()
+                                        .text(content(&mail.body)?)
+                                        .html(content(&html)?)
+                                        .build(),
+                                )
+                                .build(),
+                        )
+                        .build(),
+                )
+                .send()
+                .await
+                .map_err(|_| ApiError::internal("SES delivery failed"))?;
+            Ok(())
+        }
         "resend" => {
             state.http.post("https://api.resend.com/emails")
                 .bearer_auth(state.config.resend_key.as_deref().unwrap_or_default())

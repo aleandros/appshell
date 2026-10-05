@@ -4,7 +4,7 @@ const deadline = Date.now() + 60_000;
 let ready = false;
 while (Date.now() < deadline) {
   try {
-    const response = await fetch('http://localhost:8080/ready', {
+    const response = await fetch(`${process.env.API_TEST_URL ?? 'http://localhost:8080'}/ready`, {
       signal: AbortSignal.timeout(2_000),
     });
     if (response.ok) {
@@ -18,5 +18,5 @@ while (Date.now() < deadline) {
 }
 if (!ready)
   throw new Error(
-    'API did not become ready at localhost:8080 within 60 seconds. Start docker compose up -d db api.',
+    'API did not become ready within 60 seconds. Start the selected backend or set API_TEST_URL.',
   );

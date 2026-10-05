@@ -16,11 +16,11 @@
     "generate:api": "docker compose run --rm --no-deps api cargo run --locked --bin export-openapi > openapi.json && npm run generate:api -w apps/web",
     "check:web": "npm run check -w apps/web && npm run lint:scripts && npm run check -w @appshell/ui",
     "check:architecture": "node scripts/check-architecture.mjs && node scripts/rust.mjs test --locked --test architecture",
-    "check:rust": "node scripts/rust.mjs clippy --workspace --all-targets --all-features --locked -- -D warnings",
+    "check:rust": "node scripts/rust.mjs clippy --workspace --all-targets --features lambda,ses --locked -- -D warnings && node scripts/rust.mjs clippy --workspace --all-targets --no-default-features --features dynamodb,lambda,ses --locked -- -D warnings",
     "format": "prettier --write . && node scripts/rust.mjs fmt --all",
     "format:check": "prettier --check . && node scripts/rust.mjs fmt --all -- --check",
     "lint:scripts": "eslint scripts/*.mjs --config apps/web/eslint.config.js --max-warnings 0",
-    "test:rust": "node scripts/rust.mjs test --workspace --all-features --locked",
+    "test:rust": "node scripts/rust.mjs test --workspace --features lambda,ses --locked",
     "verify": "npm run check && npm run check:api && npm test && npm run test:rust && npm run build && npm run build:storybook && npm run test:e2e && npm run test:mail && npm run test:storybook",
     "storybook": "npm run storybook -w @appshell/ui",
     "build:storybook": "npm run build-storybook -w @appshell/ui",
@@ -33,7 +33,11 @@
     "check:api": "node scripts/check-api.mjs",
     "setup": "node scripts/setup.mjs",
     "deploy:plan": "node scripts/deploy.mjs --dry-run",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "test:dynamodb": "node scripts/test-dynamodb.mjs",
+    "dev:sam": "node scripts/sam-local.mjs",
+    "test:sam": "node scripts/sam-local.mjs --test",
+    "test:aws": "node scripts/test-aws.mjs"
   },
   "engines": {
     "node": ">=22.12"

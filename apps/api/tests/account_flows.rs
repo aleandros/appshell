@@ -1,3 +1,4 @@
+#![cfg(not(feature = "dynamodb"))]
 #![allow(clippy::unwrap_used)] // Test fixtures fail fast, including helper functions.
 #[derive(diesel::QueryableByName)]
 struct TextValue {

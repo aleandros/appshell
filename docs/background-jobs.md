@@ -2,14 +2,18 @@
 
 Email is the first shared job handler. Enable jobs once during app setup; keep the
 same Rust services, database, and email templates in either deployment mode.
-The default is `disabled`: email keeps its existing transactional outbox worker,
+PostgreSQL setup defaults to `disabled`: email keeps its existing transactional outbox worker,
 and no SQS resources or additional Docker worker are required.
 
 | Setting    | Runtime                                  | Delivery                                            |
 | ---------- | ---------------------------------------- | --------------------------------------------------- |
 | `disabled` | Combined Docker or scheduled mail Lambda | Existing mail outbox                                |
 | `postgres` | Docker API plus separate Rust worker     | Postgres claims with `SKIP LOCKED`                  |
-| `sqs`      | API Lambda plus SQS job Lambda           | SQS notifications referencing durable Postgres jobs |
+| `sqs`      | API Lambda plus SQS job Lambda           | SQS notifications referencing durable database jobs |
+
+DynamoDB setup defaults to SQS, with stream publication and scheduled recovery.
+See [DynamoDB operations](dynamodb.md) for its local setup and data layout. The SQL
+examples and PostgreSQL worker configuration below apply to PostgreSQL storage.
 
 ## Setup
 

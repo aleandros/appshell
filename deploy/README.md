@@ -7,7 +7,7 @@ npm ci
 npm run setup
 ```
 
-Choose `docker` (Render) or `lambda` (AWS + Neon), an app name, and whether GitHub
+Choose `docker` (Render/PostgreSQL) or `lambda` (AWS with PostgreSQL or DynamoDB), an app name, and whether GitHub
 should deploy automatically after checks pass. Setup saves **`appshell.deploy.json`**:
 commit this non-secret file with your app. Resource IDs can be added later by running
 setup again. No cloud requests are made during setup. Product branding still lives
@@ -23,12 +23,17 @@ clean working tree, including a committed configuration. Run `npm run verify` be
 a local release; GitHub releases run the required checks automatically. Local deploys
 are not serialized with GitHub: use one release channel at a time.
 
-Local development is identical in both modes:
+For PostgreSQL storage, both hosting modes use the same local setup:
 
 ```sh
 docker compose up -d db api
 npm run dev
 ```
+
+For a new AWS-only installation, choose `--mode lambda --storage dynamodb`.
+[DynamoDB setup](../docs/dynamodb.md) includes local Docker and optional LocalStack
+SAM testing, SES prerequisites, and operational differences. Existing configurations
+default to PostgreSQL. Storage changes require a separate data migration.
 
 ## Docker on Render
 
@@ -139,7 +144,8 @@ environment, with `aud=sts.amazonaws.com` and
 `sub=repo:YOUR_OWNER/YOUR_REPOSITORY:environment:production`. Limit that GitHub
 Environment to your default branch. Grant the deployment role the permissions needed
 for this stack: CloudFormation, its IAM roles/pass-role, Lambda, API Gateway,
-EventBridge, S3, CloudFront, ECR, and resolution/decryption of the configured secret.
+EventBridge, S3, CloudFront, ECR, SQS when jobs are enabled, and DynamoDB when selected.
+PostgreSQL deployments also need resolution/decryption of the configured secret.
 Scope those permissions to your app; runtime Lambda roles remain separate.
 
 Save the role ARN:
@@ -150,13 +156,13 @@ npm run setup -- --mode lambda --role-arn arn:aws:iam::123456789012:role/my-app-
 
 GitHub obtains temporary AWS credentials via OIDC; do not add long-lived AWS keys as
 repository secrets. Local deployment continues to use your local AWS CLI identity.
-The database, secret, sending domain, and deployment identity are deliberate one-time
-prerequisites; setup does not create accounts, credentials, or IAM trust relationships.
+The PostgreSQL database/secret (when selected), verified sending identity, and deployment
+identity are deliberate one-time prerequisites; setup does not create accounts, credentials, or IAM trust relationships.
 
 ## GitHub release behavior
 
 The **Checks** workflow runs formatting, types/lints, architecture, contracts,
-unit/integration/browser/mail/Storybook tests, both image builds, and infrastructure
+unit/integration/browser/mail/Storybook tests, all container builds, and infrastructure
 validation. Only then may it call the reusable **Deploy** workflow. Pull requests and
 non-default branches never deploy. A stale default-branch revision is skipped before
 release configuration. Running releases are not canceled by newer pushes.
@@ -177,5 +183,10 @@ open **Actions → Checks → Run workflow**, select your default branch, and ch
 There is no configuration file committed in the starter itself, so a fresh clone
 never deploys just because it is pushed. Changing the saved mode does not delete or
 migrate your existing hosting resources. Retire the old hosting separately after
-verifying the new deployment. Both modes retain PostgreSQL and the same application
-code and contract.
+verifying the new deployment. Hosting changes retain the selected storage backend.
+Switching storage is a separate data migration, not a hosting change.
+
+Lambda configurations also accept `--architecture arm64` for native Apple Silicon
+builds; `x86_64` remains the default. Docker and SAM use the same architecture.
+See [DynamoDB development and AWS smoke tests](../docs/dynamodb.md) for the
+account-free local workflow and the opt-in temporary AWS validation command.

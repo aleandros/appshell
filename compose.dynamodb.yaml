@@ -1,0 +1,54 @@
+name: appshell-dynamodb
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:3.3.0
+    command: '-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data'
+    user: root
+    ports: ['127.0.0.1:8000:8000']
+    volumes: ['dynamodb:/home/dynamodblocal/data']
+    healthcheck:
+      test: ['CMD', 'curl', '-s', 'http://localhost:8000']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.29
+    ports: ['127.0.0.1:8025:8025', '127.0.0.1:1025:1025']
+    environment:
+      MP_MAX_MESSAGES: 500
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build: { context: ., dockerfile: Dockerfile.dev }
+    image: appshell-dev
+    working_dir: /app
+    command: cargo run --locked --no-default-features --features dynamodb --bin appshell-api
+    environment:
+      DYNAMODB_TABLE: appshell-local
+      DYNAMODB_ENDPOINT_URL: http://dynamodb:8000
+      DYNAMODB_CREATE_TABLE: 'true'
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: 'true'
+      APP_URL: http://localhost:5173
+      MAIL_MODE: smtp
+      SMTP_HOST: mailpit
+      MAIL_FROM: AppShell <hello@appshell.test>
+      MAIL_BRAND: AppShell
+      RUST_LOG: appshell_api=info,tower_http=info
+    ports: ['127.0.0.1:8080:8080']
+    volumes:
+      - .:/app
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/app/target
+    depends_on:
+      dynamodb: { condition: service_healthy }
+      mailpit: { condition: service_healthy }
+volumes:
+  dynamodb:
+  cargo-registry:
+  cargo-target:

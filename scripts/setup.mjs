@@ -6,6 +6,8 @@ import { configPath, deploymentSchema, readConfig } from './deployment-config.mj
 const { values } = parseArgs({
   options: {
     mode: { type: 'string' },
+    storage: { type: 'string' },
+    architecture: { type: 'string' },
     jobs: { type: 'string' },
     'worker-service-id': { type: 'string' },
     name: { type: 'string' },
@@ -23,7 +25,7 @@ const { values } = parseArgs({
 });
 if (values.help) {
   console.log(
-    'npm run setup [-- --mode docker|lambda --name my-app --region us-east-1]\nOptional: --jobs disabled|postgres|sqs, --worker-service-id, --service-id, --secret-arn, --role-arn, --mail-from, --mail-brand, --mail-schedule, --auto-deploy, --no-auto-deploy.\nSupplying --mode selects noninteractive setup. This only saves settings; no cloud resources are created.',
+    'npm run setup [-- --mode docker|lambda --name my-app --region us-east-1]\nOptional: --storage postgres|dynamodb, --architecture x86_64|arm64, --jobs disabled|postgres|sqs, --worker-service-id, --service-id, --secret-arn, --role-arn, --mail-from, --mail-brand, --mail-schedule, --auto-deploy, --no-auto-deploy.\nSupplying --mode selects noninteractive setup. This only saves settings; no cloud resources are created.',
   );
   process.exit(0);
 }
@@ -65,14 +67,23 @@ try {
       autoDeploy = /^y/i.test(answer.trim());
     }
   }
+  const storage = await field(
+    'storage',
+    'Storage: postgres or dynamodb (Lambda)',
+    matching?.storage ?? 'postgres',
+  );
+  if (previous && previous.storage !== storage)
+    throw new Error(
+      'Changing an existing app storage setting requires a separate data migration. Create a new app configuration instead.',
+    );
   const jobs = await field(
     'jobs',
     mode === 'docker'
       ? 'Background jobs: disabled or postgres'
       : 'Background jobs: disabled or sqs',
-    matching?.jobs ?? 'disabled',
+    matching?.jobs ?? (storage === 'dynamodb' ? 'sqs' : 'disabled'),
   );
-  const common = { version: 1, mode, name: appName, autoDeploy, jobs };
+  const common = { version: 1, mode, name: appName, autoDeploy, jobs, storage };
   const config = deploymentSchema.parse(
     mode === 'docker'
       ? {
@@ -94,11 +105,19 @@ try {
       : {
           ...common,
           region: await field('region', 'AWS region', matching?.region ?? 'us-east-1'),
-          secretArn: await field(
-            'secret-arn',
-            'Secrets Manager ARN (can add later)',
-            matching?.secretArn,
+          architecture: await field(
+            'architecture',
+            'Lambda architecture: x86_64 or arm64',
+            matching?.architecture ?? 'x86_64',
           ),
+          secretArn:
+            storage === 'dynamodb'
+              ? undefined
+              : await field(
+                  'secret-arn',
+                  'Secrets Manager ARN (can add later)',
+                  matching?.secretArn,
+                ),
           roleArn: await field(
             'role-arn',
             'GitHub OIDC deployment role ARN (can add later)',
@@ -119,7 +138,7 @@ try {
   );
   writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
   console.log(
-    `Saved ${configPath}. Commit this non-secret configuration with your app.\nRun npm run deploy:plan for prerequisites and the release steps.\nLocal development: ${jobs === 'disabled' ? 'docker compose up -d db api' : 'docker compose -f compose.yaml -f compose.jobs.yaml up -d db api worker'} && npm run dev`,
+    `Saved ${configPath}. Commit this non-secret configuration with your app.\nRun npm run deploy:plan for prerequisites and the release steps.\nLocal development: ${storage === 'dynamodb' ? 'docker compose -f compose.dynamodb.yaml up -d' : jobs === 'disabled' ? 'docker compose up -d db api' : 'docker compose -f compose.yaml -f compose.jobs.yaml up -d db api worker'} && npm run dev`,
   );
 } finally {
   rl?.close();

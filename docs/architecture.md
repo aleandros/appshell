@@ -36,7 +36,7 @@ composition root: lib.rs / main.rs / bin/lambda.rs wires configuration, connecti
 - `models.rs` contains wire contracts, not entities with business behavior.
   Application errors are translated to HTTP responses in `http/error.rs`.
 
-`UnitOfWork` provides a shared connection and explicit transaction closure.
+The PostgreSQL `UnitOfWork` provides a shared connection and explicit transaction closure.
 Repository calls made inside it participate in that transaction, including
 cross-context writes and the mail outbox. Never start a separate connection from
 inside a transactional operation. `repositories::run` delegates to a blocking
@@ -48,11 +48,18 @@ free subscription in one transaction. Organization seat checks consume billing's
 service API. Billing consumes organization authorization services. These explicit
 collaborations do not require independently deployed services or separate databases.
 
-This is a pragmatic DDD structure with concrete Postgres repositories. It does
-not introduce generic CRUD repositories, one trait per function, CQRS, or an event
-bus. Introduce a repository/provider port when another implementation or focused
-service test actually needs it. Pure business rules already test without Postgres;
-transaction and authorization behavior test against real Postgres.
+Context-owned repository operations form the persistence boundary. PostgreSQL is
+the default implementation; the `dynamodb` Cargo feature selects an alternative
+implementation behind the same unit-of-work API. Build each backend separately;
+`--no-default-features --features dynamodb` removes Diesel/libpq. Domain rules and
+HTTP contracts are shared. Each backend has integration and browser coverage.
+See [DynamoDB persistence](dynamodb.md) for conditional transaction semantics,
+aggregate guards, query costs, and history enforcement. Do not add generic CRUD
+interfaces that obscure atomic use cases.
+
+DynamoDB uses infrastructure-generated UUIDs, version conditions, and atomic
+history writes instead of PostgreSQL triggers. Its repository implementation is
+the only additional location allowed to generate model UUIDs.
 
 The optional `lambda` Cargo feature adds the Lambda composition root without changing
 context or repository dependencies. It uses the same Axum router and bounded blocking
@@ -152,8 +159,8 @@ test a narrowly justified rule change.
 
 CI runs the same scripts, checks API contracts without rewriting working files, and
 runs browser/mail/Storybook tests. Rust Clippy and integration tests include the Lambda
-feature. Separate jobs build both production Docker images and validate the SAM template.
-Configure `check`, both `container` matrix jobs, and the infrastructure validation job as required
+feature. Separate jobs build the combined image and both Lambda storage images and validate the SAM template.
+Configure `check`, `dynamodb`, all `container` matrix jobs, and the infrastructure validation job as required
 branch protection checks; that repository setting is outside these source-controlled scripts.
 
 `npm ci` installs repository-local pre-commit and pre-push hooks. Commit checks cover
@@ -164,7 +171,7 @@ for existing custom hook paths and prerequisites.
 
 Deployment scripts are tooling outside the application dependency graph. Setup validates
 and saves a strict, non-secret config; release scripts call providers with argument arrays
-or fixed API URLs. The GitHub release job depends on application checks, both image builds,
+or fixed API URLs. The GitHub release job depends on application checks, all container builds,
 and infrastructure validation. Automatic releases require an explicit saved opt-in and
 only run from the default branch. See [deployment setup](../deploy/README.md).
 
@@ -191,7 +198,7 @@ Restart the Compose API after Rust changes before testing browsers. The root
 ## Data conventions
 
 Read [Administration and persisted data](data-patterns.md) before adding tables or
-account operations. Each model has a generated UUID primary key, deletion columns,
+account operations. For PostgreSQL, each model has a generated UUID primary key, deletion columns,
 and a companion history table installed with `protect_model`. Startup validates
 these conventions. Database triggers block hard deletion, immutable-ID changes,
 and history mutation, and record redacted field changes atomically. Repositories

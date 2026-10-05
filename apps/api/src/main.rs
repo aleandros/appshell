@@ -17,8 +17,7 @@ async fn main() {
         config.job_backend != JobBackend::Sqs,
         "SQS jobs use appshell-lambda; Docker uses JOB_BACKEND=postgres"
     );
-    let pool = db::connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL is required"))
-        .expect("database connection");
+    let pool = db::from_env().await.expect("database connection");
     db::migrate(pool.clone())
         .await
         .expect("database migrations");

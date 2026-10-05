@@ -1,21 +1,40 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AppShell static React frontend, Lambda API and mail worker, external PostgreSQL
+Description: AppShell static React frontend, Lambda API and mail worker, PostgreSQL or DynamoDB storage
 Parameters:
+  Architecture:
+    Type: String
+    Default: x86_64
+    AllowedValues: [x86_64, arm64]
+  Storage:
+    Type: String
+    Default: postgres
+    AllowedValues: [postgres, dynamodb]
+  LocalDevelopment:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  DynamoEndpoint:
+    Type: String
+    Default: ''
+  SmtpHost:
+    Type: String
+    Default: mailpit
   ImageUri:
     Type: String
-    Description: Immutable ECR image URI from Dockerfile.lambda (same region, linux/amd64)
+    Description: Immutable ECR image URI from Dockerfile.lambda (same region, matching Architecture)
   AppUrl:
     Type: String
     Default: https://setup.invalid
-    AllowedPattern: 'https://[^/]+'
+    AllowedPattern: 'https?://[^/]+'
     Description: Exact frontend HTTPS origin, no trailing slash; update after first deployment
   SecretArn:
     Type: String
+    Default: ''
     Description: Secrets Manager JSON with database_url, migration_database_url, resend_key
   MailFrom:
     Type: String
-    Description: Verified Resend sender, e.g. Your App <hello@example.com>
+    Description: Verified SES (DynamoDB) or Resend (PostgreSQL) sender, e.g. Your App <hello@example.com>
   MailBrand:
     Type: String
     Default: AppShell
@@ -37,26 +56,82 @@ Parameters:
     Default: 5
     MinValue: 1
 Conditions:
+  UseDynamo: !Equals [!Ref Storage, dynamodb]
+  DynamoJobs: !And [!Equals [!Ref Storage, dynamodb], !Equals [!Ref Jobs, sqs]]
+  IsLocal: !Equals [!Ref LocalDevelopment, 'true']
+  IsCloud: !Equals [!Ref LocalDevelopment, 'false']
   UseJobs: !Equals [!Ref Jobs, sqs]
   LegacyMail: !Equals [!Ref Jobs, disabled]
 Globals:
   Function:
-    Architectures: [x86_64]
+    Architectures: [!Ref Architecture]
     MemorySize: 512
     Timeout: 28
     Environment:
       Variables:
         JOB_BACKEND: !Ref Jobs
-        APP_ENV: production
+        APP_ENV: !If [IsLocal, development, production]
         APP_URL: !Ref AppUrl
         DB_POOL_SIZE: '2'
-        DATABASE_URL: !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:database_url}}'
-        MAIL_MODE: resend
+        DATABASE_URL:
+          !If [
+            UseDynamo,
+            '',
+            !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:database_url}}',
+          ]
+        DYNAMODB_TABLE: !If [UseDynamo, !Ref DataTable, '']
+        DYNAMODB_ENDPOINT_URL: !If [IsLocal, !Ref DynamoEndpoint, !Ref AWS::NoValue]
+        AWS_ENDPOINT_URL_SQS: !If [IsLocal, !Ref DynamoEndpoint, !Ref AWS::NoValue]
+        SMTP_HOST: !Ref SmtpHost
+        SMTP_PORT: '1025'
+        MAIL_MODE: !If [IsLocal, smtp, !If [UseDynamo, ses, resend]]
         MAIL_FROM: !Ref MailFrom
         MAIL_BRAND: !Ref MailBrand
-        RESEND_API_KEY: !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:resend_key}}'
+        RESEND_API_KEY:
+          !If [
+            UseDynamo,
+            '',
+            !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:resend_key}}',
+          ]
         AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH: 'true'
 Resources:
+  DataTable:
+    Type: AWS::DynamoDB::Table
+    Condition: UseDynamo
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+        - { AttributeName: gpk, AttributeType: S }
+        - { AttributeName: gsk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: listing
+          KeySchema:
+            - { AttributeName: gpk, KeyType: HASH }
+            - { AttributeName: gsk, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      StreamSpecification: { StreamViewType: NEW_IMAGE }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+  OutboxStream:
+    Type: AWS::Lambda::EventSourceMapping
+    Condition: DynamoJobs
+    Properties:
+      EventSourceArn: !GetAtt DataTable.StreamArn
+      FunctionName: !Ref JobsDispatcher
+      StartingPosition: TRIM_HORIZON
+      BatchSize: 10
+      MaximumRetryAttempts: 3
+      BisectBatchOnFunctionError: true
+      FilterCriteria:
+        Filters:
+          - Pattern: '{"eventName":["INSERT"],"dynamodb":{"Keys":{"pk":{"S":[{"prefix":"job#"}]},"sk":{"S":["record"]}}}}'
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -76,6 +151,20 @@ Resources:
           JOBS_QUEUE_URL: !If [UseJobs, !Ref JobsQueue, '']
       Policies:
         - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action:
+                  [
+                    dynamodb:GetItem,
+                    dynamodb:Query,
+                    dynamodb:PutItem,
+                    dynamodb:ConditionCheckItem,
+                    dynamodb:DescribeTable,
+                  ]
+                Resource: [!GetAtt DataTable.Arn, !Sub '${DataTable.Arn}/index/*']
+          - !Ref AWS::NoValue
+        - !If
           - UseJobs
           - SQSSendMessagePolicy:
               QueueName: !GetAtt JobsQueue.QueueName
@@ -92,6 +181,28 @@ Resources:
     Condition: LegacyMail
     Type: AWS::Serverless::Function
     Properties:
+      Policies:
+        - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: !Sub 'arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+          - !Ref AWS::NoValue
+        - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action:
+                  [
+                    dynamodb:GetItem,
+                    dynamodb:Query,
+                    dynamodb:PutItem,
+                    dynamodb:ConditionCheckItem,
+                    dynamodb:DescribeTable,
+                  ]
+                Resource: [!GetAtt DataTable.Arn, !Sub '${DataTable.Arn}/index/*']
+          - !Ref AWS::NoValue
       PackageType: Image
       ImageUri: !Ref ImageUri
       # One batch has ten messages, each with a 20-second provider timeout.
@@ -134,6 +245,28 @@ Resources:
     Type: AWS::Serverless::Function
     Condition: UseJobs
     Properties:
+      Policies:
+        - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: !Sub 'arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+          - !Ref AWS::NoValue
+        - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action:
+                  [
+                    dynamodb:GetItem,
+                    dynamodb:Query,
+                    dynamodb:PutItem,
+                    dynamodb:ConditionCheckItem,
+                    dynamodb:DescribeTable,
+                  ]
+                Resource: [!GetAtt DataTable.Arn, !Sub '${DataTable.Arn}/index/*']
+          - !Ref AWS::NoValue
       PackageType: Image
       ImageUri: !Ref ImageUri
       Timeout: 90
@@ -163,6 +296,33 @@ Resources:
           RUN_MODE: dispatcher
           JOBS_QUEUE_URL: !Ref JobsQueue
       Policies:
+        - !If
+          - DynamoJobs
+          - DynamoDBStreamReadPolicy:
+              TableName: !Ref DataTable
+              StreamName: !Select [3, !Split ['/', !GetAtt DataTable.StreamArn]]
+          - !Ref AWS::NoValue
+        - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: !Sub 'arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+          - !Ref AWS::NoValue
+        - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action:
+                  [
+                    dynamodb:GetItem,
+                    dynamodb:Query,
+                    dynamodb:PutItem,
+                    dynamodb:ConditionCheckItem,
+                    dynamodb:DescribeTable,
+                  ]
+                Resource: [!GetAtt DataTable.Arn, !Sub '${DataTable.Arn}/index/*']
+          - !Ref AWS::NoValue
         - SQSSendMessagePolicy:
             QueueName: !GetAtt JobsQueue.QueueName
       Events:
@@ -178,6 +338,21 @@ Resources:
   Migrate:
     Type: AWS::Serverless::Function
     Properties:
+      Policies:
+        - !If
+          - UseDynamo
+          - Statement:
+              - Effect: Allow
+                Action:
+                  [
+                    dynamodb:GetItem,
+                    dynamodb:Query,
+                    dynamodb:PutItem,
+                    dynamodb:ConditionCheckItem,
+                    dynamodb:DescribeTable,
+                  ]
+                Resource: [!GetAtt DataTable.Arn, !Sub '${DataTable.Arn}/index/*']
+          - !Ref AWS::NoValue
       PackageType: Image
       ImageUri: !Ref ImageUri
       Timeout: 900
@@ -185,9 +360,15 @@ Resources:
       Environment:
         Variables:
           RUN_MODE: migrate
-          DATABASE_URL: !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:migration_database_url}}'
+          DATABASE_URL:
+            !If [
+              UseDynamo,
+              '',
+              !Sub '{{resolve:secretsmanager:${SecretArn}:SecretString:migration_database_url}}',
+            ]
       # Deliberately no HTTP or schedule event. Invoke with deployment IAM credentials.
   FrontendBucket:
+    Condition: IsCloud
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -202,6 +383,7 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
   OriginAccess:
+    Condition: IsCloud
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
@@ -210,6 +392,7 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
   SpaRouting:
+    Condition: IsCloud
     Type: AWS::CloudFront::Function
     Properties:
       Name: !Sub '${AWS::StackName}-spa'
@@ -224,6 +407,7 @@ Resources:
           return request;
         }
   StaticCache:
+    Condition: IsCloud
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
@@ -238,6 +422,7 @@ Resources:
           HeadersConfig: { HeaderBehavior: none }
           QueryStringsConfig: { QueryStringBehavior: none }
   NoApiCache:
+    Condition: IsCloud
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
@@ -251,6 +436,7 @@ Resources:
           HeadersConfig: { HeaderBehavior: none }
           QueryStringsConfig: { QueryStringBehavior: none }
   ApiForwarding:
+    Condition: IsCloud
     Type: AWS::CloudFront::OriginRequestPolicy
     Properties:
       OriginRequestPolicyConfig:
@@ -261,6 +447,7 @@ Resources:
           HeaderBehavior: allExcept
           Headers: [host]
   Frontend:
+    Condition: IsCloud
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
@@ -297,6 +484,7 @@ Resources:
             CachePolicyId: !Ref NoApiCache
             OriginRequestPolicyId: !Ref ApiForwarding
   FrontendPolicy:
+    Condition: IsCloud
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: !Ref FrontendBucket
@@ -311,11 +499,19 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Frontend}'
 Outputs:
+  Storage:
+    Value: !Ref Storage
+  DataTableName:
+    Condition: UseDynamo
+    Value: !Ref DataTable
   FrontendUrl:
+    Condition: IsCloud
     Value: !Sub 'https://${Frontend.DomainName}'
   FrontendBucketName:
+    Condition: IsCloud
     Value: !Ref FrontendBucket
   DistributionId:
+    Condition: IsCloud
     Value: !Ref Frontend
   ApiUrl:
     Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'

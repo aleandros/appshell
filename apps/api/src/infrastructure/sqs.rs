@@ -1,4 +1,4 @@
-//! SQS is a notification transport. Job payloads and completion state stay in Postgres.
+//! SQS is a notification transport. Job payloads and completion state stay in the selected database.
 use crate::{
     AppState,
     error::{ApiError, Result},
@@ -21,7 +21,7 @@ struct Notification {
     job_id: Uuid,
 }
 impl Publisher {
-    #[cfg(test)]
+    #[cfg(all(test, not(feature = "dynamodb")))]
     pub(crate) fn for_test(client: Client, queue_url: String) -> Self {
         Self { client, queue_url }
     }
@@ -44,18 +44,30 @@ impl Publisher {
     }
     pub async fn publish(&self, state: &AppState) -> Result<()> {
         let pending = repositories::run(state.pool.clone(), |c| c.jobs_dispatch()).await?;
+        self.publish_ids(pending.into_iter().map(|row| row.id).collect())
+            .await
+    }
+    /// Stream inserts carry only keys into this adapter; payloads stay in storage.
+    pub async fn publish_stream(&self, event: &serde_json::Value) -> Result<()> {
+        let ids = stream_job_ids(event)?;
+        for batch in ids.chunks(10) {
+            self.publish_ids(batch.to_vec()).await?;
+        }
+        Ok(())
+    }
+    async fn publish_ids(&self, pending: Vec<Uuid>) -> Result<()> {
         if pending.is_empty() {
             return Ok(());
         }
         let entries = pending
             .into_iter()
-            .map(|row| {
+            .map(|id| {
                 SendMessageBatchRequestEntry::builder()
-                    .id(row.id.to_string())
+                    .id(id.to_string())
                     .message_body(
                         serde_json::to_string(&Notification {
                             version: 1,
-                            job_id: row.id,
+                            job_id: id,
                         })
                         .map_err(ApiError::internal)?,
                     )
@@ -78,6 +90,29 @@ impl Publisher {
         }
         Ok(())
     }
+}
+
+fn stream_job_ids(event: &serde_json::Value) -> Result<Vec<Uuid>> {
+    let mut ids = Vec::new();
+    for record in event["Records"]
+        .as_array()
+        .ok_or_else(|| ApiError::bad("Invalid stream event"))?
+    {
+        if record["eventName"] != "INSERT" {
+            continue;
+        }
+        let keys = &record["dynamodb"]["Keys"];
+        if keys["sk"]["S"] != "record" {
+            continue;
+        }
+        if let Some(value) = keys["pk"]["S"]
+            .as_str()
+            .and_then(|s| s.strip_prefix("job#"))
+        {
+            ids.push(Uuid::parse_str(value).map_err(|_| ApiError::bad("Invalid job key"))?);
+        }
+    }
+    Ok(ids)
 }
 
 #[derive(Deserialize)]
@@ -132,6 +167,22 @@ pub async fn handle(state: &AppState, event: Event) -> Response {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn stream_dispatch_ignores_history_and_updates() {
+        use serde_json::json;
+        let record = |event: &str, pk: &str| json!({"eventName":event,"dynamodb":{"Keys":{"pk":{"S":pk},"sk":{"S":"record"}},"NewImage":{"data":{"S":"secret payload"}}}});
+        let event = json!({"Records":[
+            record("INSERT", "job#00000000-0000-0000-0000-000000000001"),
+            record("MODIFY", "job#00000000-0000-0000-0000-000000000002"),
+            record("INSERT", "history#00000000-0000-0000-0000-000000000001")
+        ]});
+        let ids = super::stream_job_ids(&event).expect("valid stream");
+        assert_eq!(ids.len(), 1);
+        assert_eq!(ids[0].to_string(), "00000000-0000-0000-0000-000000000001");
+        assert!(
+            super::stream_job_ids(&json!({"Records":[record("INSERT", "job#invalid")]})).is_err()
+        );
+    }
     #[test]
     fn notifications_are_versioned_ids_only() {
         assert!(

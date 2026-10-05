@@ -1,3 +1,4 @@
+#![recursion_limit = "256"] // AWS SDK futures in the shared Lambda dispatcher.
 //! Deployment adapter. API requests, scheduled mail, and migrations have separate
 //! Lambda functions/roles; no background work survives an invocation boundary.
 use appshell_api::{
@@ -22,11 +23,9 @@ async fn main() -> Result<(), Error> {
         ["api", "worker", "migrate", "sqs", "dispatcher"].contains(&mode.as_str()),
         "Lambda RUN_MODE must be api, worker, migrate, sqs, or dispatcher"
     );
-    let pool = tokio::task::spawn_blocking(|| {
-        db::connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL is required"))
-            .expect("database pool")
-    })
-    .await?;
+    let pool = db::from_env()
+        .await
+        .map_err(|_| Error::from("storage initialization failed"))?;
     if mode == "migrate" {
         return lambda_runtime::run(service_fn(|_: LambdaEvent<Value>| {
             let pool = pool.clone();
@@ -63,10 +62,17 @@ async fn main() -> Result<(), Error> {
     };
     if mode == "dispatcher" {
         let publisher = publisher.expect("Dispatcher requires JOB_BACKEND=sqs");
-        return lambda_runtime::run(service_fn(|_: LambdaEvent<Value>| {
+        return lambda_runtime::run(service_fn(|event: LambdaEvent<Value>| {
             let state = state.clone();
             let publisher = publisher.clone();
             async move {
+                if event.payload.get("Records").is_some() {
+                    publisher
+                        .publish_stream(&event.payload)
+                        .await
+                        .map_err(|_| Error::from("stream publication failed"))?;
+                    return Ok::<_, Error>(json!({"published": true}));
+                }
                 publisher
                     .publish(&state)
                     .await

@@ -14,6 +14,7 @@ export const deploymentSchema = z
     z.strictObject({
       ...common,
       mode: z.literal('docker'),
+      storage: z.literal('postgres').default('postgres'),
       jobs: z.enum(['disabled', 'postgres']).default('disabled'),
       workerServiceId: z
         .string()
@@ -27,6 +28,8 @@ export const deploymentSchema = z
     z.strictObject({
       ...common,
       mode: z.literal('lambda'),
+      architecture: z.enum(['x86_64', 'arm64']).default('x86_64'),
+      storage: z.enum(['postgres', 'dynamodb']).default('postgres'),
       jobs: z.enum(['disabled', 'sqs']).default('disabled'),
       region,
       secretArn: secretArn.optional(),
@@ -91,7 +94,9 @@ export function missingSettings(config, env = process.env) {
     ].filter(Boolean);
   }
   return [
-    !config.secretArn && 'secretArn (existing Secrets Manager secret)',
+    config.storage !== 'dynamodb' &&
+      !config.secretArn &&
+      'secretArn (existing Secrets Manager secret)',
     !config.mailFrom && 'mailFrom (verified sender)',
   ].filter(Boolean);
 }
@@ -111,7 +116,9 @@ export function deploymentPlan(config) {
     `Use AWS ${config.region}; stack and ECR repository: ${config.name}.`,
     'Build the frontend locally; create the ECR repository if missing and push the Lambda image.',
     'Create/update the SAM stack; discover and configure its CloudFront origin automatically.',
-    'Invoke migrations and check their result before uploading any frontend files.',
+    config.storage === 'dynamodb'
+      ? 'Provision on-demand DynamoDB with atomic history and SES; validate its schema before publishing.'
+      : 'Invoke migrations and check their result before uploading any frontend files.',
     'Upload assets, publish index.html last, then invalidate CloudFront.',
     config.jobs === 'sqs'
       ? 'Enable SQS jobs and a recovery dispatcher; mail delivery is triggered by SQS.'

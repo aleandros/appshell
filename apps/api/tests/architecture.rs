@@ -1,3 +1,4 @@
+#![cfg(not(feature = "dynamodb"))]
 #![allow(clippy::unwrap_used)] // Test fixtures fail fast, including helper functions.
 //! Executable dependency rules. These inspect Rust syntax, including macro tokens;
 //! comments and string literals cannot produce matches or hide qualified imports.
@@ -97,7 +98,13 @@ fn violations(path: &str, source: &str, repository_methods: &BTreeSet<String>) -
         }
     }
 
-    if path != "infrastructure/crypto.rs" && names.contains("new_v4") {
+    if ![
+        "infrastructure/crypto.rs",
+        "infrastructure/repositories/dynamodb/mod.rs",
+    ]
+    .contains(&path)
+        && names.contains("new_v4")
+    {
         boundary.errors.push(
             "generate database IDs in PostgreSQL; randomness belongs in crypto token generation"
                 .into(),

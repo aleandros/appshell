@@ -4,8 +4,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut input = String::new();
     io::stdin().take(4096).read_to_string(&mut input)?;
     let account: appshell_api::models::CreateAdmin = serde_json::from_str(&input)?;
-    let url = std::env::var("DATABASE_URL")?;
-    let pool = appshell_api::db::connect(&url)
+    let pool = appshell_api::db::from_env()
+        .await
         .map_err(|e| format!("Database connection failed: {e:?}"))?;
     appshell_api::db::migrate(pool.clone())
         .await

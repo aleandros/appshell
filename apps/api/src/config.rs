@@ -46,12 +46,16 @@ impl Config {
         );
         let mail_mode = std::env::var("MAIL_MODE").unwrap_or_else(|_| "smtp".into());
         assert!(
-            ["smtp", "console", "resend"].contains(&mail_mode.as_str()),
-            "MAIL_MODE must be smtp, console, or resend"
+            ["smtp", "console", "resend", "ses"].contains(&mail_mode.as_str()),
+            "MAIL_MODE must be smtp, console, resend, or ses"
         );
         assert!(
-            !production || mail_mode == "resend",
-            "Production requires MAIL_MODE=resend"
+            !production || ["resend", "ses"].contains(&mail_mode.as_str()),
+            "Production requires MAIL_MODE=resend or ses"
+        );
+        assert!(
+            mail_mode != "ses" || cfg!(feature = "ses"),
+            "MAIL_MODE=ses requires the ses build feature"
         );
         let optional = |key| std::env::var(key).ok().filter(|s| !s.is_empty());
         let resend_key = optional("RESEND_API_KEY");

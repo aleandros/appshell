@@ -71,13 +71,18 @@ export async function deployLambda(config, sha, { run = command, log = console.l
   const identity = z
     .object({ Account: z.string().regex(/^\d{12}$/) })
     .parse(json(['sts', 'get-caller-identity']));
-  if (identity.Account !== config.secretArn.split(':')[4])
+  if (config.secretArn && identity.Account !== config.secretArn.split(':')[4])
     throw new Error('AWS credentials do not match the configured secret account.');
   const registry = `${identity.Account}.dkr.ecr.${config.region}.amazonaws.com`;
-  const image = `${registry}/${config.name}:${sha}`;
+  const architecture = config.architecture ?? 'x86_64';
+  const storageTag = config.storage === 'dynamodb' ? `${sha}-dynamodb` : sha;
+  const imageTag = architecture === 'arm64' ? `${storageTag}-arm64` : storageTag;
+  const image = `${registry}/${config.name}:${imageTag}`;
   let outputs = {};
   try {
     outputs = outputsFrom(json(['cloudformation', 'describe-stacks', '--stack-name', config.name]));
+    if ((outputs.Storage ?? 'postgres') !== (config.storage ?? 'postgres'))
+      throw new Error('Changing storage on an existing stack requires a data migration.');
     if (!outputs.FrontendUrl)
       throw new Error(
         'Existing stack is not an AppShell deployment (FrontendUrl output is missing).',
@@ -107,7 +112,7 @@ export async function deployLambda(config, sha, { run = command, log = console.l
       '--repository-name',
       config.name,
       '--image-ids',
-      `imageTag=${sha}`,
+      `imageTag=${imageTag}`,
     ]);
     log('Reusing the Lambda image already published for this commit.');
   } catch (error) {
@@ -122,9 +127,11 @@ export async function deployLambda(config, sha, { run = command, log = console.l
       'buildx',
       'build',
       '--platform',
-      'linux/amd64',
+      architecture === 'arm64' ? 'linux/arm64' : 'linux/amd64',
       '--provenance=false',
       '--push',
+      '--build-arg',
+      `STORAGE=${config.storage ?? 'postgres'}`,
       '-f',
       'Dockerfile.lambda',
       '-t',
@@ -147,8 +154,10 @@ export async function deployLambda(config, sha, { run = command, log = console.l
         '--no-fail-on-empty-changeset',
         '--parameter-overrides',
         `ImageUri=${image}`,
+        `Architecture=${architecture}`,
         `AppUrl=${origin}`,
-        `SecretArn=${config.secretArn}`,
+        `SecretArn=${config.secretArn ?? ''}`,
+        `Storage=${config.storage ?? 'postgres'}`,
         `MailFrom=${config.mailFrom}`,
         `MailBrand=${config.mailBrand}`,
         `MailSchedule=${config.mailSchedule}`,

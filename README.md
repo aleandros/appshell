@@ -6,6 +6,9 @@ Licensed under [MIT](LICENSE). See [AGENTS.md](AGENTS.md) for repository convent
 
 ## Start locally
 
+This quickstart uses **Docker + PostgreSQL**, the default. For a fully serverless
+AWS app with DynamoDB, use the alternative commands under [Start a new app](#start-a-new-app).
+
 Requires Node 22.12+ and Docker Desktop. A local Rust installation is optional.
 `npm ci` installs the repository Git hooks automatically (see below).
 
@@ -22,17 +25,42 @@ If you have Rust and libpq installed, use `docker compose up -d db mailpit`, cop
 ## Start a new app
 
 Create a repository from this starter, then run `npm ci` and `npm run setup`.
-Choose Docker/Render or Lambda/Neon, with optional background jobs. Render is the
-managed hosting service targeted by the Docker convenience command. Both modes
-use PostgreSQL and the same Rust business logic; Lambda serves the API behind a
-static React frontend on S3/CloudFront.
+Choose how your app will run in production:
 
-For noninteractive setup, choose one:
+| Starting option                               | Production deployment                                                                                                                                                 | Local development                                                                          |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **Traditional Docker + PostgreSQL** (default) | Containerized Rust API, React frontend, and mail worker with PostgreSQL; the deployment command targets Render.                                                       | Docker Compose with PostgreSQL and Mailpit.                                                |
+| **Fully serverless AWS + DynamoDB**           | SAM provisions API Gateway, Lambda, DynamoDB, SQS, and S3/CloudFront; email uses SES. All application data lives in DynamoDB, with no PostgreSQL server to provision. | Docker Compose with DynamoDB Local and Mailpit; no AWS account or LocalStack token needed. |
+
+Both options provide the same application features, React UI, API contract, and
+Rust business logic. Choose storage when starting a new app; moving an existing
+installation between databases requires a separate data migration.
+
+For **Docker + PostgreSQL**:
 
 ```sh
 npm run setup -- --mode docker --name my-app
-npm run setup -- --mode lambda --name my-app --region us-east-1
+docker compose up -d db api
+npm run dev
 ```
+
+For **fully serverless AWS + DynamoDB**:
+
+```sh
+npm run setup -- --mode lambda --storage dynamodb --name my-app --region us-east-1
+# On Apple Silicon, add --architecture arm64 for native Lambda builds.
+docker compose -f compose.dynamodb.yaml up -d
+npm run dev
+```
+
+Run one local stack at a time because both use the same API and Mailpit ports.
+Docker is a local development/build tool for the serverless option; production
+runs on managed AWS services. SES requires a verified sender before it can send
+mail. See [DynamoDB setup, local SAM testing, and AWS smoke tests](docs/dynamodb.md).
+
+Lambda with PostgreSQL/Neon is also supported: use
+`npm run setup -- --mode lambda --storage postgres --name my-app --region us-east-1`.
+This combines serverless compute with PostgreSQL persistence.
 
 Setup saves non-secret settings in `appshell.deploy.json` without provisioning
 cloud resources. Run `npm run deploy:plan` to see the required provider resources,
@@ -50,11 +78,12 @@ opt-in; manual releases use the **Checks** workflow's **deploy** input.
 - Public landing and pricing sections, protected organization workspace, overview, team, billing, account settings, and workspace creation.
 - Responsive semantic controls, keyboard focus, reduced-motion support, light/dark/system appearance, loading skeletons, retry states, validation, empty states, and route error boundaries.
 - Axum API; utoipa OpenAPI derived from Rust DTOs; generated TypeScript contract; strict TypeScript, TanStack Router and Query, Zod response validation, React StrictMode, Tailwind 4.
+- Optional DynamoDB persistence with conditional transactions, atomic history/outbox writes, DynamoDB Local, SES, and a LocalStack SAM development command.
 - PostgreSQL through Diesel with a bounded r2d2 connection pool. Database and Argon2 work runs on blocking workers, off the async HTTP executor. Embedded, versioned migrations run under a Postgres advisory lock: at Docker startup or through the private migration Lambda during deployment.
 - Email/password signup and login; verification and resend; password recovery and authenticated password change; confirmed email change; logout. Password/email changes revoke existing sessions and outstanding action tokens.
 - Hashed opaque sessions in HttpOnly cookies, expiring hashed single-use action tokens, exact-origin checks for writes, persistent rate limits, verified-email gates, and organization authorization on every tenant endpoint.
 - Separate installation admin console at `/admin`, with script-only first-admin bootstrap, account operations, suspension/restoration, and user change history.
-- Postgres-generated UUID IDs, enforced soft deletion, and redacted companion history tables for every application model. See [data patterns](docs/data-patterns.md).
+- PostgreSQL mode: database-generated UUID IDs, enforced soft deletion, and redacted companion history tables for every application model. See [data patterns](docs/data-patterns.md).
 - Multiple organizations per user; owner/admin/member roles; expiring, revocable invitations; email-bound acceptance; transactional seat reservations and protection against concurrent acceptance.
 - Free/Pro organization subscriptions and server-side seat entitlements. Optional Stripe Checkout, billing portal, and signed/idempotent subscription webhooks. Free works without a payment account.
 - Retryable transactional mail outbox with branded HTML/plain-text templates, Mailpit SMTP delivery locally, and Resend HTTPS delivery in production.
@@ -86,20 +115,23 @@ packages/ui/              Shared controls, default tokens/styles, and Storybook
 openapi.json              Generated by the Rust export binary
 ```
 
-| Mode               | Setup                                                                                 | Use                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Combined (default) | `RUN_MODE=combined`, `STATIC_DIR=/app/public`                                         | One process serves React, API, and mail worker. Smallest hosting footprint. |
-| Split frontend/API | Static frontend with `/api` reverse proxy; API `RUN_MODE=combined`, omit `STATIC_DIR` | Independent frontend delivery while the API also delivers mail.             |
-| Serverless         | Static React on S3/CloudFront, Lambda API/mail, Neon Postgres                         | Request-driven compute; [setup and tradeoffs](deploy/lambda/README.md).     |
-| Separate workers   | API `RUN_MODE=api`; one or more processes `RUN_MODE=worker`                           | Scale request handling and email delivery independently.                    |
+| Mode                 | Setup                                                                                      | Use                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Combined (default)   | `RUN_MODE=combined`, `STATIC_DIR=/app/public`                                              | One process serves React, API, and mail worker. Smallest hosting footprint.             |
+| Split frontend/API   | Static frontend with `/api` reverse proxy; API `RUN_MODE=combined`, omit `STATIC_DIR`      | Independent frontend delivery while the API also delivers mail.                         |
+| Lambda + PostgreSQL  | Static React on S3/CloudFront, Lambda API/mail, Neon Postgres                              | Request-driven compute with PostgreSQL; [setup and tradeoffs](deploy/lambda/README.md). |
+| Fully serverless AWS | `--mode lambda --storage dynamodb`; API Gateway, Lambda, DynamoDB, SES, SQS, S3/CloudFront | SAM-provisioned application infrastructure; [guide](docs/dynamodb.md).                  |
+| Separate workers     | API `RUN_MODE=api`; one or more processes `RUN_MODE=worker`                                | Scale request handling and email delivery independently.                                |
 
-Sessions, rate limits, invitations, subscriptions, and jobs live in Postgres; API replicas don't depend on sticky sessions or local disk. Mail workers claim jobs using `FOR UPDATE SKIP LOCKED`. Size the database and total connection count before adding replicas (default `DB_POOL_SIZE=8`; the Lambda template uses 2).
+With PostgreSQL storage, sessions, rate limits, invitations, subscriptions, and jobs live in Postgres; API replicas don't depend on sticky sessions or local disk. Mail workers claim jobs using `FOR UPDATE SKIP LOCKED`. Size the database and total connection count before adding replicas (default `DB_POOL_SIZE=8`; the Lambda template uses 2).
 
 Use **one browser origin** with an `/api` proxy when splitting deployments. Alternatively, `VITE_API_URL=https://api.example.com` works with `APP_URL=https://app.example.com` on HTTPS **same-site subdomains**. Unrelated hosting domains are intentionally unsupported with the default SameSite=Lax cookies. Do not weaken cookie policy to work around that; configure a proxy or common domain.
 
-Choose Docker or Lambda during deployment setup; both use the same React app, Rust
-services, and Postgres schema. You can change deployment later. DynamoDB is deferred
-because it requires a separate persistence design, not a configuration switch.
+Choose hosting and storage during deployment setup. PostgreSQL remains the default;
+Lambda also supports DynamoDB for a new installation. Changing hosting with the same
+backend is supported; changing storage requires a separate data migration.
+[DynamoDB documentation](docs/dynamodb.md) covers its access patterns, guarantees,
+local setup, tests, AWS deployment, and operational differences.
 
 ECS/Fargate can run the Docker image with separate API and worker services, but
 ECS provisioning and deployment automation are not included. The convenience
@@ -107,7 +139,8 @@ command currently targets Render for Docker and AWS SAM for Lambda.
 
 ## Optional background jobs
 
-Jobs are disabled by default; email still uses its existing transactional outbox.
+Jobs are disabled by default with PostgreSQL; DynamoDB setup defaults to SQS jobs.
+With jobs disabled, email still uses its existing transactional outbox.
 To enable the shared job handler, add the option to setup:
 
 ```sh
@@ -124,11 +157,11 @@ npm run setup -- --mode lambda --jobs sqs
   the dispatcher polls every 15 minutes, so idle Neon compute still wakes periodically.
 
 Email is the first handler in both modes. Account changes, email, and job records
-commit together in Postgres; SQS carries only job IDs. Leases, bounded retries,
+commit together in the selected database; SQS carries only job IDs. Leases, bounded retries,
 failure tracking, and duplicate handling provide at-least-once execution.
 New handlers must make their effects idempotent.
 
-Use the separate Postgres worker locally for either deployment target:
+For PostgreSQL installations, use the separate Postgres worker locally with either deployment target:
 
 ```sh
 docker compose -f compose.yaml -f compose.jobs.yaml up -d db api worker
@@ -203,14 +236,14 @@ if your environment manages hooks separately.
   including Lambda support, generated API contract drift, and the frontend build.
   Start the Compose database first. Native Rust also requires `TEST_DATABASE_URL`.
 - **GitHub Checks:** the full application suite, browser/mail/Storybook tests,
-  contract drift, and both Docker image builds. **Infrastructure:** validates the
+  contract drift, and all container image builds. **Infrastructure:** validates the
   Lambda SAM/CloudFormation template. The optional **Deploy** workflow uses your saved
   configuration only after all checks pass; [configure releases](deploy/README.md#github-release-behavior).
 
 Hooks never format, stage, stash, or commit files. Use `npm run format` to fix formatting.
 Browser/mail/Storybook tests remain in CI and `npm run verify`, so ordinary pushes
 need a database but not a running API or browser. Git hooks are local conveniences;
-configure required GitHub checks (`check`, both `container` matrix jobs, and
+configure required GitHub checks (`check`, `dynamodb`, all `container` matrix jobs, and
 the infrastructure validation job) in branch protection to enforce them centrally.
 
 ## Hosting for free
@@ -230,7 +263,7 @@ Import controls from `@appshell/ui` and styles from `@appshell/ui/styles.css`. R
 
 ## Email and billing
 
-Mailpit is available at **http://localhost:8025** (SMTP **localhost:1025**). Its HTML, text, source, and preview views let you inspect messages from real account flows. Both ports are bound to localhost in Compose. The API container uses `SMTP_HOST=mailpit`; a native API uses `SMTP_HOST=localhost`. `MAIL_MODE=console` remains an optional local debugging mode. Production requires `MAIL_MODE=resend`, a verified `MAIL_FROM`, and `RESEND_API_KEY`.
+Mailpit is available at **http://localhost:8025** (SMTP **localhost:1025**). Its HTML, text, source, and preview views let you inspect messages from real account flows. Both ports are bound to localhost in Compose. The API container uses `SMTP_HOST=mailpit`; a native API uses `SMTP_HOST=localhost`. `MAIL_MODE=console` remains an optional local debugging mode. The default production image uses `MAIL_MODE=resend`, a verified `MAIL_FROM`, and `RESEND_API_KEY`. DynamoDB Lambda deployments use SES; see the [DynamoDB guide](docs/dynamodb.md).
 
 All five email types share `apps/api/src/infrastructure/email_template.rs`: verification, password reset, email confirmation, workspace invitations, and email-change notices. Customize layout, inline styles, CTA, and footer there; set `MAIL_BRAND` for the product name. The renderer escapes dynamic content and emits matching plain text and HTML. Copy and links live in `infrastructure/mail.rs`. Existing queued text-only messages remain deliverable after the additive migration.
 

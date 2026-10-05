@@ -13,6 +13,8 @@ const lambda = {
   version: 1,
   name: 'test-app',
   mode: 'lambda',
+  architecture: 'x86_64',
+  storage: 'postgres',
   jobs: 'disabled',
   autoDeploy: false,
   region: 'us-east-1',
@@ -26,6 +28,7 @@ const docker = {
   version: 1,
   name: 'test-app',
   mode: 'docker',
+  storage: 'postgres',
   jobs: 'disabled',
   autoDeploy: false,
   serviceId: 'srv-example',
@@ -56,6 +59,7 @@ test('deployment config rejects secrets, mismatched accounts/regions, and unknow
     { ...docker, serviceId: 'srv-example\nmode=lambda' },
     { ...docker, jobs: 'sqs' },
     { ...lambda, jobs: 'postgres' },
+    { ...lambda, architecture: 'amd64' },
     { ...docker, jobs: 'postgres', workerServiceId: docker.serviceId },
   ])
     assert.equal(deploymentSchema.safeParse(value).success, false);
@@ -149,6 +153,7 @@ function awsFake({
   permissionError = false,
   existing = false,
   account = '123456789012',
+  storage,
 } = {}) {
   const calls = [];
   let applied = existing;
@@ -167,6 +172,7 @@ function awsFake({
               MigrationFunction: 'migration',
               FrontendBucketName: 'frontend',
               DistributionId: 'D123',
+              ...(storage ? { Storage: storage } : {}),
             }).map(([OutputKey, OutputValue]) => ({ OutputKey, OutputValue })),
           },
         ],
@@ -322,4 +328,66 @@ test('Lambda refuses to overwrite unrelated stacks and stops if image publishing
     );
     assert.ok(!fake.calls.some((c) => c.args[0] === 'cloudformation' && c.args[1] === 'deploy'));
   }
+});
+
+test('DynamoDB setup selects SQS, needs no database secret, and prevents accidental storage changes', (t) => {
+  const cwd = fixture(t);
+  let result = script(
+    'setup.mjs',
+    cwd,
+    [
+      '--mode',
+      'lambda',
+      '--storage',
+      'dynamodb',
+      '--architecture',
+      'arm64',
+      '--name',
+      'dynamo-app',
+    ],
+    { PATH: '' },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const config = JSON.parse(readFileSync(join(cwd, 'appshell.deploy.json')));
+  assert.equal(config.storage, 'dynamodb');
+  assert.equal(config.architecture, 'arm64');
+  assert.equal(config.jobs, 'sqs');
+  assert.equal(config.secretArn, undefined);
+  assert.deepEqual(missingSettings({ ...config, mailFrom: 'hello@example.com' }), []);
+  assert.equal(deploymentSchema.safeParse({ ...docker, storage: 'dynamodb' }).success, false);
+  result = script('setup.mjs', cwd, ['--mode', 'lambda', '--storage', 'postgres'], { PATH: '' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /data migration/);
+});
+
+test('DynamoDB deploy builds its storage feature and rejects replacing PostgreSQL', async () => {
+  const config = { ...lambda, storage: 'dynamodb', secretArn: undefined, jobs: 'sqs' };
+  const fake = awsFake({ storage: 'dynamodb' });
+  await deployLambda(config, sha, { ...fake, log });
+  const build = fake.calls.find((call) => call.cmd === 'docker' && call.args[0] === 'buildx');
+  assert.ok(build.args.includes('STORAGE=dynamodb'));
+  assert.ok(build.args.some((arg) => arg.endsWith(`${sha}-dynamodb`)));
+  const apply = fake.calls.find(
+    (call) => call.args[0] === 'cloudformation' && call.args[1] === 'deploy',
+  );
+  assert.ok(apply.args.includes('Storage=dynamodb'));
+  assert.ok(apply.args.includes('SecretArn='));
+  await assert.rejects(
+    deployLambda(config, sha, { ...awsFake({ existing: true }), log }),
+    /data migration/,
+  );
+});
+
+test('ARM releases keep the Docker platform, image tag and SAM architecture consistent', async () => {
+  const config = { ...lambda, storage: 'dynamodb', secretArn: undefined, architecture: 'arm64' };
+  const fake = awsFake({ storage: 'dynamodb' });
+  await deployLambda(config, sha, { ...fake, log });
+  const build = fake.calls.find((call) => call.cmd === 'docker' && call.args[0] === 'buildx');
+  assert.ok(build.args.includes('linux/arm64'));
+  assert.ok(build.args.some((arg) => arg.endsWith(`${sha}-dynamodb-arm64`)));
+  const applies = fake.calls.filter(
+    (call) => call.args[0] === 'cloudformation' && call.args[1] === 'deploy',
+  );
+  assert.ok(applies.length > 0);
+  assert.ok(applies.every((call) => call.args.includes('Architecture=arm64')));
 });

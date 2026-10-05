@@ -1,22 +1,34 @@
+#[cfg(not(feature = "dynamodb"))]
 use crate::{
     db,
     error::{ApiError, Result},
 };
+#[cfg(not(feature = "dynamodb"))]
 use diesel::{Connection, PgConnection, RunQueryDsl};
+#[cfg(not(feature = "dynamodb"))]
 use uuid::Uuid;
+#[cfg(not(feature = "dynamodb"))]
 mod admin;
+#[cfg(not(feature = "dynamodb"))]
 mod billing;
+#[cfg(not(feature = "dynamodb"))]
 mod health;
+#[cfg(not(feature = "dynamodb"))]
 mod identity;
+#[cfg(not(feature = "dynamodb"))]
 mod jobs;
+#[cfg(not(feature = "dynamodb"))]
 mod mail;
+#[cfg(not(feature = "dynamodb"))]
 mod organizations;
 /// One connection, shared by every repository participating in a use case.
 /// Transactions keep locks, single-use tokens, and outbox writes atomic.
+#[cfg(not(feature = "dynamodb"))]
 pub(crate) struct UnitOfWork<'a> {
     connection: &'a mut PgConnection,
     in_transaction: bool,
 }
+#[cfg(not(feature = "dynamodb"))]
 impl UnitOfWork<'_> {
     /// Transaction-local attribution; never persists on a pooled connection.
     pub(crate) fn actor(&mut self, kind: &str, id: Uuid) -> Result<()> {
@@ -51,6 +63,7 @@ impl UnitOfWork<'_> {
         })
     }
 }
+#[cfg(not(feature = "dynamodb"))]
 pub(crate) async fn run<T: Send + 'static>(
     pool: db::DbPool,
     f: impl FnOnce(&mut UnitOfWork<'_>) -> Result<T> + Send + 'static,
@@ -65,3 +78,8 @@ pub(crate) async fn run<T: Send + 'static>(
 }
 
 pub(crate) use crate::db::DbPool;
+
+#[cfg(feature = "dynamodb")]
+mod dynamodb;
+#[cfg(feature = "dynamodb")]
+pub(crate) use dynamodb::{UnitOfWork, run};

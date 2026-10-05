@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { setTimeout } from 'node:timers/promises';
 import './wait-for-api.mjs';
-const api = 'http://localhost:8080/api';
+const api = `${process.env.API_TEST_URL ?? 'http://localhost:8080'}/api`;
 const inbox = 'http://localhost:8025';
 const origin = 'http://localhost:5173';
 const email = `mail-${crypto.randomUUID()}@example.test`;

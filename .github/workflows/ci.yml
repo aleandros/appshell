@@ -67,11 +67,51 @@ jobs:
           path: |
             apps/web/test-results
             packages/ui/test-results
+  dynamodb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DYNAMODB_TABLE: appshell-ci
+      DYNAMODB_ENDPOINT_URL: http://localhost:8000
+      DYNAMODB_CREATE_TABLE: 'true'
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: 'true'
+      APP_URL: http://localhost:5173
+      MAIL_MODE: smtp
+      MAIL_FROM: AppShell <hello@appshell.test>
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { key: dynamodb }
+      - run: npm ci
+      - run: npm run test:dynamodb
+      - run: docker compose -f compose.dynamodb.yaml up -d mailpit
+      - run: npx playwright install --with-deps chromium
+      - run: cargo build --locked --no-default-features --features dynamodb --bin appshell-api
+      - run: |
+          cargo run --locked --no-default-features --features dynamodb --bin appshell-api > /tmp/appshell-dynamodb.log 2>&1 &
+          npm run test:e2e
+          npm run test:mail
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: dynamodb-browser-test-results
+          path: apps/web/test-results
   container:
     strategy:
       matrix:
-        dockerfile: [Dockerfile, Dockerfile.lambda]
-    runs-on: ubuntu-latest
+        include:
+          - { dockerfile: Dockerfile, storage: postgres, runner: ubuntu-latest }
+          - { dockerfile: Dockerfile.lambda, storage: postgres, runner: ubuntu-latest }
+          - { dockerfile: Dockerfile.lambda, storage: dynamodb, runner: ubuntu-latest }
+          - { dockerfile: Dockerfile.lambda, storage: postgres, runner: ubuntu-24.04-arm }
+          - { dockerfile: Dockerfile.lambda, storage: dynamodb, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -80,13 +120,14 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: STORAGE=${{ matrix.storage }}
           push: false
-          cache-from: type=gha,scope=${{ matrix.dockerfile }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.dockerfile }}
+          cache-from: type=gha,scope=${{ matrix.dockerfile }}-${{ matrix.storage }}-${{ matrix.runner }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.dockerfile }}-${{ matrix.storage }}-${{ matrix.runner }}
   infrastructure:
     uses: ./.github/workflows/infrastructure.yml
   deploy:
-    needs: [check, container, infrastructure]
+    needs: [check, dynamodb, container, infrastructure]
     if: >-
       github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))

@@ -1,6 +1,11 @@
 # Administration and persisted data
 
-Every application table uses a PostgreSQL-generated UUID primary key, soft deletion,
+This page describes the PostgreSQL implementation. DynamoDB installations follow
+the [DynamoDB data conventions](dynamodb.md#persistence-guarantees-and-access-patterns):
+infrastructure-generated UUIDs, conditional transactions, revocation versions, and
+atomic adapter-managed history. The account/admin behavior remains shared.
+
+Every PostgreSQL application table uses a database-generated UUID primary key, soft deletion,
 and an append-only companion history table. Migration `00000000000004` upgrades
 existing installations without dropping their data. Existing UUIDs remain stable;
 previous natural/composite keys become business constraints. Stripe event IDs are

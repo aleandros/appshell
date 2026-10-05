@@ -9,6 +9,10 @@ default-run = "appshell-api"
 workspace = true
 
 [features]
+default = ["postgres"]
+postgres = ["dep:diesel", "dep:diesel_migrations"]
+dynamodb = ["dep:aws-config", "dep:aws-sdk-dynamodb"]
+ses = ["dep:aws-config", "dep:aws-sdk-sesv2"]
 lambda = ["dep:lambda_http", "dep:aws-config", "dep:aws-sdk-sqs"]
 
 [[bin]]
@@ -17,6 +21,8 @@ path = "src/bin/lambda.rs"
 required-features = ["lambda"]
 
 [dependencies]
+aws-sdk-dynamodb = { version = "1", optional = true }
+aws-sdk-sesv2 = { version = "1", optional = true }
 aws-config = { version = "1", optional = true, default-features = false, features = ["default-https-client", "rt-tokio"] }
 aws-sdk-sqs = { version = "1", optional = true }
 
@@ -26,8 +32,8 @@ appshell-domain = { path = "../domain" }
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["cors", "fs", "trace", "compression-gzip", "limit", "set-header"] }
-diesel = { version = "2.3", features = ["postgres", "r2d2", "chrono", "uuid", "serde_json"] }
-diesel_migrations = "2.3"
+diesel = { version = "2.3", optional = true, features = ["postgres", "r2d2", "chrono", "uuid", "serde_json"] }
+diesel_migrations = { version = "2.3", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }

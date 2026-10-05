@@ -41,7 +41,7 @@ test('public shell, themes, responsive layout and accessible controls', async ({
   await expect(page).toHaveURL(/\/login$/);
 });
 test('signup, private workspace and logout against the real API', async ({ page }) => {
-  const address = `browser-${crypto.randomUUID()}@example.com`;
+  const address = `browser-${crypto.randomUUID()}@${process.env.E2E_EMAIL_DOMAIN ?? 'example.com'}`;
   await page.goto('/signup');
   await page.getByLabel('Your name').fill('Alex Morgan');
   await page.getByLabel('Workspace name').fill('Acme Studio');

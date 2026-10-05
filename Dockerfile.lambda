@@ -3,12 +3,16 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock clippy.toml ./
 COPY apps/api apps/api
 COPY apps/domain apps/domain
-RUN cargo build --release --locked --features lambda --bin appshell-lambda
+ARG STORAGE=postgres
+RUN cargo build --release --locked --no-default-features --features lambda,${STORAGE},ses --bin appshell-lambda
 
-# The Rust runtime talks directly to the Lambda Runtime API. Keep libpq and
-# system CA certificates alongside the binary; no Node runtime or web server.
+# The Rust runtime talks directly to the Lambda Runtime API. DynamoDB builds
+# need only CA certificates; PostgreSQL builds additionally need libpq.
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends libpq5 ca-certificates && rm -rf /var/lib/apt/lists/*
+ARG STORAGE=postgres
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    if [ "$STORAGE" = postgres ]; then apt-get install -y --no-install-recommends libpq5; fi && \
+    rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/target/release/appshell-lambda /usr/local/bin/appshell-lambda
 ENV RUST_LOG=appshell_api=info
 ENTRYPOINT ["/usr/local/bin/appshell-lambda"]
