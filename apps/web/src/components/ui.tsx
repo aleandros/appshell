@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -6,12 +7,17 @@ import { z } from 'zod';
 import { clsx } from 'clsx';
 import { errorMessage } from '../lib/errors';
 import { brand } from '../config/brand';
-import { Button, Notice, Logo as SharedLogo, ErrorState as SharedErrorState } from '@appshell/ui';
+import {
+  Button,
+  Notice,
+  Logo as SharedLogo,
+  Loading as SharedLoading,
+  ErrorState as SharedErrorState,
+} from '@appshell/ui';
 export {
   Button,
   Field,
   Notice,
-  Loading,
   Badge,
   PageHeading,
   Plant,
@@ -23,7 +29,19 @@ export function Logo({ compact = false }: { compact?: boolean }) {
   return <SharedLogo name={brand.name} compact={compact} />;
 }
 export function ErrorState({ error, retry }: { error: unknown; retry?: () => void }) {
-  return <SharedErrorState message={errorMessage(error)} {...(retry ? { retry } : {})} />;
+  const { t } = useTranslation();
+  return (
+    <SharedErrorState
+      retryLabel={t('Try again')}
+      message={errorMessage(error, t)}
+      {...(retry ? { retry } : {})}
+    />
+  );
+}
+
+export function Loading({ label }: { label?: string }) {
+  const { t } = useTranslation();
+  return <SharedLoading label={label ?? t('Loading your workspace…')} />;
 }
 
 export function ActionForm<S extends z.ZodType>({
@@ -43,7 +61,8 @@ export function ActionForm<S extends z.ZodType>({
   successMessage?: string;
   className?: string;
 }) {
-  const [validation, setValidation] = useState<string | null>(null);
+  const { t } = useTranslation();
+  const [validation, setValidation] = useState<z.core.$ZodIssue[]>([]);
   const mutation = useMutation({
     mutationFn: submit,
     onSuccess: async () => {
@@ -57,22 +76,26 @@ export function ActionForm<S extends z.ZodType>({
         event.preventDefault();
         const parsed = schema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
         if (!parsed.success) {
-          setValidation(
-            parsed.error.issues
-              .map((issue) => `${issue.path.join(' ')}: ${issue.message}`)
-              .join(' '),
-          );
+          setValidation(parsed.error.issues);
           return;
         }
-        setValidation(null);
+        setValidation([]);
         mutation.mutate(parsed.data);
       }}
     >
       <fieldset disabled={mutation.isPending} className="min-w-0 space-y-5">
         {children}
       </fieldset>
-      {validation && <Notice kind="error">{validation}</Notice>}
-      {mutation.isError && <Notice kind="error">{errorMessage(mutation.error)}</Notice>}
+      {validation.length > 0 && (
+        <Notice kind="error">
+          {validation
+            .map((issue) =>
+              t(issue.message, { defaultValue: t('Please check the submitted fields.') }),
+            )
+            .join(' ')}
+        </Notice>
+      )}
+      {mutation.isError && <Notice kind="error">{errorMessage(mutation.error, t)}</Notice>}
       {mutation.isSuccess && successMessage && <Notice kind="success">{successMessage}</Notice>}
       <Button type="submit" pending={mutation.isPending} className="w-full">
         {label}

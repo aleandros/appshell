@@ -110,6 +110,12 @@ app/router -> pages -> feature public APIs -> validated HTTP client
   Web `styles/tokens.css` is reserved for product-specific overrides. Keep
   accessible controls, keyboard behavior, and light/dark/system support.
 
+Language configuration and catalogs live in `config/`; shared `lib/` modules own
+locale negotiation, lazy catalog loading and the i18next instance. Components
+subscribe with `useTranslation`; UI primitives accept translated labels through
+props and have no i18next dependency. Optional catalog completeness checks are
+part of `check:web`. See [internationalization](internationalization.md).
+
 React does not need to reproduce the backend's repository/service/domain layers.
 Feature boundaries and explicit state ownership provide useful separation without
 wrapping every hook or component in additional abstractions.

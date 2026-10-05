@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from '../components/language-switcher';
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -31,33 +33,43 @@ import {
 import type { AdminAccount, ManagedUser } from '../features/admin';
 
 export function AdminLoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   return (
     <main className="mx-auto min-h-dvh max-w-md space-y-7 px-6 py-12">
       <header className="flex items-center justify-between">
         <ButtonLink to="/" variant="quiet">
-          Home
+          {t('Home')}
         </ButtonLink>
-        <ThemeSwitcher />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <LanguageSwitcher />
+          <ThemeSwitcher />
+        </div>
       </header>
       <PageHeading
-        eyebrow="ADMINISTRATION"
-        title="Admin sign in"
-        description="Manage accounts and review changes across this installation."
+        eyebrow={t('ADMINISTRATION')}
+        title={t('Admin sign in')}
+        description={t('Manage accounts and review changes across this installation.')}
       />
       <Card className="p-6">
         <ActionForm
           schema={loginSchema}
-          label="Sign in to administration"
+          label={t('Sign in to administration')}
           submit={adminApi.login}
           onSuccess={async () => {
             queryClient.removeQueries({ queryKey: ['admin'] });
             await navigate({ to: '/admin' });
           }}
         >
-          <Field label="Admin email" name="email" type="email" autoComplete="username" required />
           <Field
-            label="Admin password"
+            label={t('Admin email')}
+            name="email"
+            type="email"
+            autoComplete="username"
+            required
+          />
+          <Field
+            label={t('Admin password')}
             name="password"
             type="password"
             autoComplete="current-password"
@@ -77,6 +89,7 @@ function Pager({
   count: number;
   setOffset: (offset: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-3 pt-4">
       <Button
@@ -84,32 +97,35 @@ function Pager({
         disabled={offset === 0}
         onClick={() => setOffset(Math.max(0, offset - 50))}
       >
-        Previous
+        {t('Previous')}
       </Button>
-      <span className="text-sm text-muted">Page {Math.floor(offset / 50) + 1}</span>
+      <span className="text-sm text-muted">
+        {t('Page {{page, number}}', { page: Math.floor(offset / 50) + 1 })}
+      </span>
       <Button variant="secondary" disabled={count < 50} onClick={() => setOffset(offset + 50)}>
-        Next
+        {t('Next')}
       </Button>
     </div>
   );
 }
 function AccountFields({ account }: { account: AdminAccount }) {
+  const { t } = useTranslation();
   return (
     <>
-      <Field label="Name" name="name" defaultValue={account.name} maxLength={80} required />
-      <Field label="Email" name="email" type="email" defaultValue={account.email} required />
+      <Field label={t('Name')} name="name" defaultValue={account.name} maxLength={80} required />
+      <Field label={t('Email')} name="email" type="email" defaultValue={account.email} required />
       <div>
         <label className="label" htmlFor="account-status">
-          Account status
+          {t('Account status')}
         </label>
         <Select
           id="account-status"
           name="status"
           defaultValue={account.deleted_at ? 'deleted' : account.status}
         >
-          <option value="active">Active (restores a deleted account)</option>
-          <option value="suspended">Suspended</option>
-          <option value="deleted">Deleted</option>
+          <option value="active">{t('Active (restores a deleted account)')}</option>
+          <option value="suspended">{t('Suspended')}</option>
+          <option value="deleted">{t('Deleted')}</option>
         </Select>
       </div>
     </>
@@ -119,30 +135,33 @@ async function refresh() {
   await queryClient.invalidateQueries({ queryKey: ['admin'] });
 }
 function UserEditor({ user }: { user: ManagedUser }) {
+  const { t, i18n } = useTranslation();
   const [offset, setOffset] = useState(0);
   const history = useQuery(adminHistoryQuery(user.id, offset));
   const reset = useMutation({ mutationFn: () => adminApi.resetUser(user.id), onSuccess: refresh });
   return (
     <div className="space-y-6">
       <Card className="p-6">
-        <h2 className="mb-2 text-lg font-semibold">Edit user</h2>
+        <h2 className="mb-2 text-lg font-semibold">{t('Edit user')}</h2>
         <p className="mb-5 text-sm text-muted">
-          Changes sign this user out on all devices. Changing their email requires verification of
-          the new address. Deletion retains their data and workspace memberships; restoring the
-          account restores that access.
+          {t(
+            'Changes sign this user out on all devices. Changing their email requires verification of the new address. Deletion retains their data and workspace memberships; restoring the account restores that access.',
+          )}
         </p>
         <ActionForm
           schema={updateUserSchema}
-          label="Save user changes"
+          label={t('Save user changes')}
           submit={(body) => adminApi.updateUser(user.id, body)}
           onSuccess={refresh}
-          successMessage="User updated and sessions revoked."
+          successMessage={t('User updated and sessions revoked.')}
         >
           <AccountFields account={user} />
         </ActionForm>
         <div className="mt-6 space-y-3 border-t pt-6">
           <p className="text-sm text-muted">
-            A password reset revokes sessions and sends a single-use link to {user.email}.
+            {t('A password reset revokes sessions and sends a single-use link to {{email}}.', {
+              email: user.email,
+            })}
           </p>
           <Button
             variant="secondary"
@@ -150,14 +169,14 @@ function UserEditor({ user }: { user: ManagedUser }) {
             pending={reset.isPending}
             onClick={() => reset.mutate()}
           >
-            Send password reset
+            {t('Send password reset')}
           </Button>
           {reset.isError && <ErrorState error={reset.error} />}
-          {reset.isSuccess && <Notice kind="success">{reset.data.message}</Notice>}
+          {reset.isSuccess && <Notice kind="success">{t('Password reset sent.')}</Notice>}
         </div>
       </Card>
       <Card className="p-6">
-        <h2 className="mb-5 text-lg font-semibold">Change history</h2>
+        <h2 className="mb-5 text-lg font-semibold">{t('Change history')}</h2>
         {history.isPending ? (
           <Loading />
         ) : history.isError ? (
@@ -165,14 +184,14 @@ function UserEditor({ user }: { user: ManagedUser }) {
         ) : (
           <>
             {history.data.length === 0 ? (
-              <Notice>No recorded changes yet.</Notice>
+              <Notice>{t('No recorded changes yet.')}</Notice>
             ) : (
               <ol className="space-y-5">
                 {history.data.map((entry) => (
                   <li key={entry.id} className="space-y-2 border-b pb-5">
                     <p className="text-sm font-medium">
-                      {entry.operation === 'INSERT' ? 'Created' : 'Updated'} ·{' '}
-                      {new Date(entry.changed_at).toLocaleString()}
+                      {entry.operation === 'INSERT' ? t('Created') : t('Updated')} ·{' '}
+                      {new Date(entry.changed_at).toLocaleString(i18n.language)}
                     </p>
                     <p className="break-all text-xs text-muted">
                       {entry.actor_kind}
@@ -200,17 +219,19 @@ function UserEditor({ user }: { user: ManagedUser }) {
   );
 }
 function AdminEditor({ account, self }: { account: AdminAccount; self: boolean }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   return (
     <Card className="p-6">
-      <h2 className="mb-2 text-lg font-semibold">Edit administrator</h2>
+      <h2 className="mb-2 text-lg font-semibold">{t('Edit administrator')}</h2>
       <p className="mb-5 text-sm text-muted">
-        All administrators can manage this installation. Changes revoke this administrator’s
-        sessions. You cannot suspend or delete yourself.
+        {t(
+          'All administrators can manage this installation. Changes revoke this administrator’s sessions. You cannot suspend or delete yourself.',
+        )}
       </p>
       <ActionForm
         schema={updateAdminSchema}
-        label="Save administrator changes"
+        label={t('Save administrator changes')}
         submit={(body) => adminApi.update(account.id, body)}
         onSuccess={async () => {
           if (self) {
@@ -218,21 +239,22 @@ function AdminEditor({ account, self }: { account: AdminAccount; self: boolean }
             await navigate({ to: '/admin/login' });
           } else await refresh();
         }}
-        successMessage="Administrator updated and sessions revoked."
+        successMessage={t('Administrator updated and sessions revoked.')}
       >
         <AccountFields account={account} />
         <Field
-          label="New password (optional)"
+          label={t('New password (optional)')}
           name="password"
           type="password"
           autoComplete="new-password"
-          hint="Leave blank to keep the current password."
+          hint={t('Leave blank to keep the current password.')}
         />
       </ActionForm>
     </Card>
   );
 }
 export function AdminPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const session = useQuery(adminSessionQuery);
   const [tab, setTab] = useState<'users' | 'accounts'>('users');
@@ -262,30 +284,33 @@ export function AdminPage() {
     return (
       <main className="p-8">
         <ErrorState error={session.error} />
-        <ButtonLink to="/admin/login">Admin sign in</ButtonLink>
+        <ButtonLink to="/admin/login">{t('Admin sign in')}</ButtonLink>
       </main>
     );
   return (
     <main className="mx-auto max-w-7xl space-y-7 px-5 py-8 sm:px-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="eyebrow">ADMINISTRATION</p>
+          <p className="eyebrow">{t('ADMINISTRATION')}</p>
           <p className="mt-2 text-sm text-muted">{session.data.email}</p>
         </div>
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <LanguageSwitcher />
+            <ThemeSwitcher />
+          </div>
           <Button variant="secondary" pending={logout.isPending} onClick={() => logout.mutate()}>
-            Sign out
+            {t('Sign out')}
           </Button>
         </div>
       </header>
       <PageHeading
-        eyebrow="INSTALLATION MANAGEMENT"
-        title="Account operations"
-        description="Manage access and account details, with a history of every change."
+        eyebrow={t('INSTALLATION MANAGEMENT')}
+        title={t('Account operations')}
+        description={t('Manage access and account details, with a history of every change.')}
       />
       {logout.isError && <ErrorState error={logout.error} />}
-      <nav aria-label="Administration sections" className="flex gap-3">
+      <nav aria-label={t('Administration sections')} className="flex gap-3">
         {(['users', 'accounts'] as const).map((value) => (
           <Button
             key={value}
@@ -297,7 +322,7 @@ export function AdminPage() {
               setSelected(null);
             }}
           >
-            {value === 'users' ? 'Application users' : 'Administrators'}
+            {value === 'users' ? t('Application users') : t('Administrators')}
           </Button>
         ))}
       </nav>
@@ -306,7 +331,7 @@ export function AdminPage() {
           <Card className="p-6">
             <ActionForm
               schema={z.object({ search: z.string().max(254) })}
-              label="Search accounts"
+              label={t('Search accounts')}
               submit={(body) => {
                 setSearch(body.search);
                 setOffset(0);
@@ -314,7 +339,7 @@ export function AdminPage() {
                 return Promise.resolve();
               }}
             >
-              <Field label="Name or email" name="search" type="search" defaultValue={search} />
+              <Field label={t('Name or email')} name="search" type="search" defaultValue={search} />
             </ActionForm>
             <div className="mt-6">
               {current.isPending ? (
@@ -324,7 +349,7 @@ export function AdminPage() {
               ) : (
                 <>
                   {current.data.length === 0 ? (
-                    <Notice>No matching accounts.</Notice>
+                    <Notice>{t('No matching accounts.')}</Notice>
                   ) : (
                     <ul className="divide-y">
                       {current.data.map((account) => (
@@ -335,15 +360,15 @@ export function AdminPage() {
                           <div className="min-w-0">
                             <p className="font-medium">{account.name}</p>
                             <p className="break-all text-sm text-muted">{account.email}</p>
-                            <Badge>{account.deleted_at ? 'deleted' : account.status}</Badge>
+                            <Badge>{t(account.deleted_at ? 'deleted' : account.status)}</Badge>
                           </div>
                           <Button
                             variant="secondary"
-                            aria-label={`Manage ${account.email}`}
+                            aria-label={t('Manage {{email}}', { email: account.email })}
                             aria-pressed={selected === account.id}
                             onClick={() => setSelected(account.id)}
                           >
-                            Manage
+                            {t('Manage')}
                           </Button>
                         </li>
                       ))}
@@ -363,18 +388,18 @@ export function AdminPage() {
           </Card>
           {tab === 'accounts' && (
             <Card className="p-6">
-              <h2 className="mb-5 text-lg font-semibold">Add administrator</h2>
+              <h2 className="mb-5 text-lg font-semibold">{t('Add administrator')}</h2>
               <ActionForm
                 schema={createAdminSchema}
-                label="Create administrator"
+                label={t('Create administrator')}
                 submit={adminApi.create}
                 onSuccess={refresh}
-                successMessage="Administrator created. Share their credentials securely."
+                successMessage={t('Administrator created. Share their credentials securely.')}
               >
-                <Field label="Name" name="name" maxLength={80} required />
-                <Field label="Email" name="email" type="email" required />
+                <Field label={t('Name')} name="name" maxLength={80} required />
+                <Field label={t('Email')} name="email" type="email" required />
                 <Field
-                  label="Initial password"
+                  label={t('Initial password')}
                   name="password"
                   type="password"
                   autoComplete="new-password"
@@ -385,7 +410,7 @@ export function AdminPage() {
             </Card>
           )}
         </section>
-        <section aria-label="Account details">
+        <section aria-label={t('Account details')}>
           {tab === 'users' && selectedUser ? (
             <UserEditor key={selectedUser.id} user={selectedUser} />
           ) : tab === 'accounts' && selectedAdmin ? (
@@ -396,7 +421,7 @@ export function AdminPage() {
             />
           ) : (
             <Card className="p-8">
-              <Notice>Select an account to manage its details.</Notice>
+              <Notice>{t('Select an account to manage its details.')}</Notice>
             </Card>
           )}
         </section>

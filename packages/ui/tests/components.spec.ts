@@ -61,3 +61,19 @@ test('system appearance follows OS preference', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
+
+test('localized controls expose translated accessible labels', async ({ page }) => {
+  await page.goto(
+    '/iframe.html?id=design-system-controls--localized-controls&viewMode=story&globals=a11y.manual:!true',
+  );
+  await expect(page.getByRole('group', { name: 'Apariencia' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tema oscuro' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  const accessibility = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(accessibility.violations).toEqual([]);
+});

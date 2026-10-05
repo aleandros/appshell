@@ -187,13 +187,21 @@ export function CardAnchor({
 }: AnchorHTMLAttributes<HTMLAnchorElement> & { ref?: Ref<HTMLAnchorElement> }) {
   return <a {...props} ref={ref} className={clsx('card', className)} />;
 }
-export function ErrorState({ message, retry }: { message: string; retry?: () => void }) {
+export function ErrorState({
+  message,
+  retry,
+  retryLabel = 'Try again',
+}: {
+  message: string;
+  retry?: () => void;
+  retryLabel?: string;
+}) {
   return (
     <div className="mx-auto max-w-lg space-y-5 py-12">
       <Notice kind="error">{message}</Notice>
       {retry && (
         <Button variant="secondary" onClick={retry}>
-          Try again
+          {retryLabel}
         </Button>
       )}
     </div>

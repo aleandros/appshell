@@ -118,3 +118,30 @@ export const Surfaces: Story = {
   ),
 };
 export const Appearance: Story = { render: () => <ThemeSwitcher /> };
+
+export const LocalizedControls: Story = {
+  render: () => (
+    <div lang="es" className="space-y-5">
+      <ThemeSwitcher
+        labels={{
+          group: 'Apariencia',
+          light: 'Tema claro',
+          dark: 'Tema oscuro',
+          system: 'Tema del sistema',
+        }}
+      />
+      <Loading label="Cargando…" />
+      <ErrorState message="No se pudo cargar." retryLabel="Reintentar" retry={fn()} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('group', { name: 'Apariencia' })).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Tema oscuro' }));
+    await expect(canvas.getByRole('button', { name: 'Tema oscuro' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(canvas.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  },
+};

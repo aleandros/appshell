@@ -8,6 +8,11 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+export function errorMessage(
+  error: unknown,
+  translate: (message: string) => string = (message) => message,
+): string {
+  return translate(
+    error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+  );
 }

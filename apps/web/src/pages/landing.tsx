@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from '../components/language-switcher';
+import { Trans, useTranslation } from 'react-i18next';
 import { ButtonAnchor, Card } from '@appshell/ui';
 import { ButtonLink } from '../components/links';
 import { Link } from '@tanstack/react-router';
@@ -17,29 +19,31 @@ import { Logo, Plant, Badge } from '../components/ui';
 import { ThemeSwitcher } from '../components/theme';
 import { brand } from '../config/brand';
 export function Landing() {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto max-w-7xl px-5 sm:px-10">
       <header className="flex min-h-24 flex-wrap items-center justify-between gap-4 border-b py-4">
-        <Link to="/" aria-label="AppShell home">
+        <Link to="/" aria-label={t('AppShell home')}>
           <Logo />
         </Link>
         <nav
           className="hidden items-center gap-8 text-sm text-muted md:flex"
-          aria-label="Main navigation"
+          aria-label={t('Main navigation')}
         >
           <a href="#possibilities" className="hover:text-foreground">
-            Why AppShell
+            {t('Why AppShell')}
           </a>
           <a href="#pricing" className="hover:text-foreground">
-            Plans
+            {t('Plans')}
           </a>
         </nav>
         <div className="flex items-center gap-3">
           <ButtonLink variant="quiet" to="/login">
-            Sign in
+            {t('Sign in')}
           </ButtonLink>
           <ButtonLink variant="primary" to="/signup">
-            Get started <ArrowRight size={16} />
+            {t('Get started')}
+            <ArrowRight size={16} />
           </ButtonLink>
         </div>
       </header>
@@ -47,41 +51,44 @@ export function Landing() {
         <section className="grid items-center gap-12 py-16 lg:grid-cols-[1fr_1.04fr] lg:gap-16 lg:py-24">
           <div>
             <Badge>
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> ROOM FOR YOUR NEXT CHAPTER
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />{' '}
+              {t('ROOM FOR YOUR NEXT CHAPTER')}
             </Badge>
             <h1 className="mt-7 text-5xl leading-[1.1] font-semibold tracking-[-.045em] sm:text-6xl lg:text-[72px]">
-              Good things
-              <br />
-              start with
-              <br />
-              <span className="text-primary">a little space.</span>
+              <Trans
+                t={t}
+                i18nKey="landingHeadline"
+                components={{ line: <br />, highlight: <span className="text-primary" /> }}
+              />
             </h1>
             <p className="mt-7 max-w-md text-lg leading-relaxed text-muted">
-              Bring your people, your ideas, and your next big thing together. A thoughtful
-              workspace that grows with you.
+              {t(
+                'Bring your people, your ideas, and your next big thing together. A thoughtful workspace that grows with you.',
+              )}
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <ButtonLink variant="primary" to="/signup" className="px-6">
-                Create your workspace <ArrowRight size={17} />
+                {t('Create your workspace')}
+                <ArrowRight size={17} />
               </ButtonLink>
               <ButtonAnchor variant="secondary" href="#possibilities">
-                Take a look
+                {t('Take a look')}
               </ButtonAnchor>
             </div>
             <p className="mt-5 flex items-center gap-2 text-xs text-muted">
-              <Check size={14} /> Free to start <span className="mx-1">·</span> No credit card
-              needed
+              <Check size={14} /> {t('Free to start')}
+              <span className="mx-1">·</span> {t('No credit card needed')}
             </p>
           </div>
           <div className="relative rounded-[28px] border bg-accent/35 p-5 sm:p-8">
-            <span className="eyebrow mb-5 block">A home for what comes next</span>
+            <span className="eyebrow mb-5 block">{t('A home for what comes next')}</span>
             <Card as="div" className="relative overflow-hidden">
               <div className="flex items-center justify-between border-b p-5">
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                     <Sparkles size={16} />
                   </span>
-                  <span className="text-xs font-semibold">Your workspace</span>
+                  <span className="text-xs font-semibold">{t('Your workspace')}</span>
                 </div>
                 <div className="flex gap-1.5">
                   {[1, 2, 3].map((v) => (
@@ -92,12 +99,12 @@ export function Landing() {
               <div className="p-6">
                 <div className="flex justify-between">
                   <div>
-                    <p className="text-xs text-muted">MAKE YOURSELF AT HOME</p>
+                    <p className="text-xs text-muted">{t('MAKE YOURSELF AT HOME')}</p>
                     <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-                      A fresh beginning.
+                      {t('A fresh beginning.')}
                     </h2>
                     <p className="mt-2 text-xs text-muted">
-                      A little structure. A lot of possibility.
+                      {t('A little structure. A lot of possibility.')}
                     </p>
                   </div>
                 </div>
@@ -107,20 +114,27 @@ export function Landing() {
                     <Plant />
                   </div>
                   <span className="absolute right-3 bottom-3 rounded-lg border bg-surface/90 px-3 py-2 text-[10px] text-muted">
-                    Made for growing ideas ↗
+                    {t('Made for growing ideas ↗')}
                   </span>
                 </div>
                 <div className="mt-5 space-y-3">
-                  {['Make it yours', 'Bring your people', 'Build something great'].map((s, i) => (
-                    <div key={s} className="flex items-center gap-3 rounded-lg border p-3 text-xs">
-                      <CheckCircle2
-                        size={16}
-                        className={i === 0 ? 'text-primary' : 'text-border'}
-                      />
-                      <span>{s}</span>
-                      {i === 0 && <span className="ml-auto text-[10px] text-primary">All set</span>}
-                    </div>
-                  ))}
+                  {[t('Make it yours'), t('Bring your people'), t('Build something great')].map(
+                    (s, i) => (
+                      <div
+                        key={s}
+                        className="flex items-center gap-3 rounded-lg border p-3 text-xs"
+                      >
+                        <CheckCircle2
+                          size={16}
+                          className={i === 0 ? 'text-primary' : 'text-border'}
+                        />
+                        <span>{s}</span>
+                        {i === 0 && (
+                          <span className="ml-auto text-[10px] text-primary">{t('All set')}</span>
+                        )}
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
             </Card>
@@ -129,8 +143,8 @@ export function Landing() {
                 <Users size={18} />
               </span>
               <div>
-                <p className="text-xs font-semibold">Better, together.</p>
-                <p className="mt-1 text-[10px] text-muted">Your team belongs here.</p>
+                <p className="text-xs font-semibold">{t('Better, together.')}</p>
+                <p className="mt-1 text-[10px] text-muted">{t('Your team belongs here.')}</p>
               </div>
             </div>
           </div>
@@ -138,34 +152,37 @@ export function Landing() {
         <section id="possibilities" className="border-t py-16">
           <div className="mb-9 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="eyebrow">LESS FRICTION, MORE POSSIBILITY</p>
+              <p className="eyebrow">{t('LESS FRICTION, MORE POSSIBILITY')}</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                The essentials, thoughtfully done.
+                {t('The essentials, thoughtfully done.')}
               </h2>
             </div>
             <p className="max-w-sm leading-relaxed text-muted">
-              A comfortable starting point for a team of one, or a whole room of possibility.
+              {t('A comfortable starting point for a team of one, or a whole room of possibility.')}
             </p>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
             {[
               {
                 icon: Users,
-                title: 'A place for your people',
-                description:
+                title: t('A place for your people'),
+                description: t(
                   'Invite your collaborators. Keep work organized with separate workspaces and clear roles.',
+                ),
               },
               {
                 icon: ShieldCheck,
-                title: 'Peace of mind, built in',
-                description:
+                title: t('Peace of mind, built in'),
+                description: t(
                   'Verified accounts, private workspaces, and account recovery when you need it.',
+                ),
               },
               {
                 icon: Settings2,
-                title: 'Make yourself at home',
-                description:
+                title: t('Make yourself at home'),
+                description: t(
                   'Light, dark, or whatever your system prefers. A familiar experience on every screen.',
+                ),
               },
             ].map(({ icon: Icon, title, description }) => (
               <Card as="article" key={title} className="p-7">
@@ -183,24 +200,27 @@ export function Landing() {
           className="mb-16 grid gap-8 rounded-3xl border bg-surface p-7 sm:p-10 lg:grid-cols-2"
         >
           <div>
-            <p className="eyebrow">SMALL STARTS WELCOME</p>
+            <p className="eyebrow">{t('SMALL STARTS WELCOME')}</p>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-              Start free. Grow at your pace.
+              {t('Start free. Grow at your pace.')}
             </h2>
             <p className="mt-4 max-w-md leading-7 text-muted">
-              Your first workspace includes up to {brand.freeSeats} people and all the essentials.
-              Larger teams can move to Pro when billing is enabled for their installation.
+              {t(
+                'Your first workspace includes up to {{seats, number}} people and all the essentials. Larger teams can move to Pro when billing is enabled for their installation.',
+                { seats: brand.freeSeats },
+              )}
             </p>
             <ButtonLink variant="primary" to="/signup" className="mt-6">
-              Find your space <ArrowRight size={16} />
+              {t('Find your space')}
+              <ArrowRight size={16} />
             </ButtonLink>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { icon: Users, label: '3 team members' },
-              { icon: LockKeyhole, label: 'Private by default' },
-              { icon: LayoutDashboard, label: 'Unlimited possibility' },
-              { icon: CreditCard, label: 'No card to start' },
+              { icon: Users, label: t('teamMembers', { count: brand.freeSeats }) },
+              { icon: LockKeyhole, label: t('Private by default') },
+              { icon: LayoutDashboard, label: t('Unlimited possibility') },
+              { icon: CreditCard, label: t('No card to start') },
             ].map(({ icon: Icon, label }) => (
               <div
                 key={label}
@@ -217,10 +237,13 @@ export function Landing() {
         <div className="flex items-center gap-4">
           <Logo compact />
           <span className="text-xs text-muted">
-            {brand.name} · {brand.tagline}
+            {brand.name} · {t(brand.tagline)}
           </span>
         </div>
-        <ThemeSwitcher />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <LanguageSwitcher />
+          <ThemeSwitcher />
+        </div>
       </footer>
     </div>
   );

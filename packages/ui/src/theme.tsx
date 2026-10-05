@@ -10,7 +10,16 @@ function savedTheme(): Theme {
     return 'system';
   }
 }
-export function ThemeSwitcher() {
+export function ThemeSwitcher({
+  labels = {
+    group: 'Color theme',
+    light: 'light theme',
+    dark: 'dark theme',
+    system: 'system theme',
+  },
+}: {
+  labels?: { group: string; light: string; dark: string; system: string };
+}) {
   const [theme, setTheme] = useState<Theme>(savedTheme);
   useEffect(() => {
     const synchronize = () => setTheme(savedTheme());
@@ -40,7 +49,7 @@ export function ThemeSwitcher() {
     <div
       className="inline-flex gap-1 rounded-xl border bg-surface p-1"
       role="group"
-      aria-label="Color theme"
+      aria-label={labels.group}
     >
       {(
         [
@@ -52,8 +61,8 @@ export function ThemeSwitcher() {
         <Button
           variant="quiet"
           key={value}
-          title={`${value} theme`}
-          aria-label={`${value} theme`}
+          title={labels[value]}
+          aria-label={labels[value]}
           aria-pressed={theme === value}
           onClick={() => {
             setTheme(value);

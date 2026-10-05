@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from '../components/language-switcher';
+import { Trans, useTranslation } from 'react-i18next';
 import { ButtonLink } from '../components/links';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -20,6 +22,7 @@ export function AuthLayout({
   description: string;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <main className="grid min-h-dvh lg:grid-cols-2">
       <aside className="relative hidden flex-col justify-between overflow-hidden border-r bg-accent/35 p-12 lg:flex">
@@ -27,35 +30,36 @@ export function AuthLayout({
           <Logo />
         </Link>
         <div className="max-w-md">
-          <p className="eyebrow mb-5">A LITTLE ROOM TO GROW</p>
+          <p className="eyebrow mb-5">{t('A LITTLE ROOM TO GROW')}</p>
           <h2 className="text-5xl leading-tight font-semibold tracking-tight">
-            Your next chapter
-            <br />
-            starts here.
+            <Trans t={t} i18nKey="authHeadline" components={{ line: <br /> }} />
           </h2>
           <p className="mt-6 max-w-sm text-base leading-7 text-muted">
-            A thoughtful home for your work and the people who make it happen.
+            {t('A thoughtful home for your work and the people who make it happen.')}
           </p>
           <div className="mt-10 flex gap-6 text-xs text-muted">
             <span className="flex gap-2">
-              <Check size={15} /> Simple by design
+              <Check size={15} /> {t('Simple by design')}
             </span>
             <span className="flex gap-2">
-              <Check size={15} /> Yours to make
+              <Check size={15} /> {t('Yours to make')}
             </span>
           </div>
         </div>
         <div className="flex items-end justify-between">
-          <p className="text-xs text-muted">Space to build. Room to become.</p>
+          <p className="text-xs text-muted">{t('Space to build. Room to become.')}</p>
           <Plant />
         </div>
       </aside>
       <section className="flex flex-col p-6 sm:p-10">
         <header className="flex items-center justify-between">
           <ButtonLink variant="quiet" to="/" className="-ml-3 text-xs">
-            <ArrowLeft size={15} /> Back to home
+            <ArrowLeft size={15} /> {t('Back to home')}
           </ButtonLink>
-          <ThemeSwitcher />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <LanguageSwitcher />
+            <ThemeSwitcher />
+          </div>
         </header>
         <div className="mx-auto my-auto w-full max-w-sm py-12">
           <span className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-primary">
@@ -65,21 +69,22 @@ export function AuthLayout({
           <p className="mt-3 mb-8 leading-6 text-muted">{description}</p>
           {children}
         </div>
-        <footer className="text-center text-xs text-muted">A good place to begin.</footer>
+        <footer className="text-center text-xs text-muted">{t('A good place to begin.')}</footer>
       </section>
     </main>
   );
 }
 export function SignupPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   return (
     <AuthLayout
-      title="Make a little space."
-      description="Create an account and a workspace for your next big thing."
+      title={t('Make a little space.')}
+      description={t('Create an account and a workspace for your next big thing.')}
     >
       <ActionForm
         schema={signupSchema}
-        label="Create your workspace"
+        label={t('Create your workspace')}
         submit={async (body) => {
           const result = await identityApi.signup(body);
           queryClient.clear();
@@ -88,58 +93,59 @@ export function SignupPage() {
         onSuccess={() => navigate({ to: '/app' })}
       >
         <Field
-          label="Your name"
+          label={t('Your name')}
           name="name"
           autoComplete="name"
-          placeholder="Alex Morgan"
+          placeholder={t('Alex Morgan')}
           required
           maxLength={80}
         />
         <Field
-          label="Workspace name"
+          label={t('Workspace name')}
           name="organization"
           autoComplete="organization"
-          placeholder="Acme Studio"
+          placeholder={t('Acme Studio')}
           required
           maxLength={80}
         />
         <Field
-          label="Email address"
+          label={t('Email address')}
           name="email"
           type="email"
           autoComplete="email"
-          placeholder="you@company.com"
+          placeholder={t('you@company.com')}
           required
         />
         <Field
-          label="Password"
+          label={t('Password')}
           name="password"
           type="password"
           autoComplete="new-password"
-          hint="At least 12 characters. Make it memorable."
+          hint={t('At least 12 characters. Make it memorable.')}
           required
           minLength={12}
         />
       </ActionForm>
       <p className="mt-7 text-center text-sm text-muted">
-        Already have an account?{' '}
+        {t('Already have an account?')}{' '}
         <Link to="/login" className="font-semibold text-primary">
-          Sign in
+          {t('Sign in')}
         </Link>
       </p>
     </AuthLayout>
   );
 }
 export function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   return (
     <AuthLayout
-      title="Welcome back."
-      description="Your people and your next big idea are right where you left them."
+      title={t('Welcome back.')}
+      description={t('Your people and your next big idea are right where you left them.')}
     >
       <ActionForm
         schema={loginSchema}
-        label="Sign in"
+        label={t('Sign in')}
         submit={async (body) => {
           const result = await identityApi.login(body);
           queryClient.clear();
@@ -151,15 +157,15 @@ export function LoginPage() {
         }}
       >
         <Field
-          label="Email address"
+          label={t('Email address')}
           name="email"
           type="email"
           autoComplete="email"
-          placeholder="you@company.com"
+          placeholder={t('you@company.com')}
           required
         />
         <Field
-          label="Password"
+          label={t('Password')}
           name="password"
           type="password"
           autoComplete="current-password"
@@ -167,71 +173,75 @@ export function LoginPage() {
         />
         <div className="text-right">
           <Link to="/forgot-password" className="text-xs font-medium text-primary">
-            Forgot your password?
+            {t('Forgot your password?')}
           </Link>
         </div>
       </ActionForm>
       <p className="mt-7 text-center text-sm text-muted">
-        New here?{' '}
+        {t('New here?')}{' '}
         <Link to="/signup" className="font-semibold text-primary">
-          Create an account
+          {t('Create an account')}
         </Link>
       </p>
     </AuthLayout>
   );
 }
 export function ForgotPage() {
+  const { t } = useTranslation();
   return (
     <AuthLayout
-      title="Let’s get you back in."
-      description="Enter your email and we’ll send you a password reset link."
+      title={t('Let’s get you back in.')}
+      description={t('Enter your email and we’ll send you a password reset link.')}
     >
       <ActionForm
         schema={z.object({ email })}
-        label="Send reset link"
+        label={t('Send reset link')}
         submit={(body) => identityApi.forgotPassword(body)}
-        successMessage="If an account exists, a reset link is on its way. Check your inbox."
+        successMessage={t('If an account exists, a reset link is on its way. Check your inbox.')}
       >
-        <Field label="Email address" name="email" type="email" autoComplete="email" required />
+        <Field label={t('Email address')} name="email" type="email" autoComplete="email" required />
       </ActionForm>
       <ButtonLink variant="quiet" to="/login" className="mt-5 w-full">
-        Back to sign in
+        {t('Back to sign in')}
       </ButtonLink>
     </AuthLayout>
   );
 }
 type TokenFlow = 'verify-email' | 'reset-password' | 'confirm-email' | 'accept-invite';
-const tokenCopy: Record<
-  TokenFlow,
-  { title: string; description: string; label: string; success: string }
-> = {
-  'verify-email': {
-    title: 'One small step.',
-    description: 'Confirm your email to unlock your workspace.',
-    label: 'Verify email',
-    success: 'Email verified. Your workspace is ready.',
-  },
-  'reset-password': {
-    title: 'A fresh start.',
-    description: 'Choose a new password for your account.',
-    label: 'Reset password',
-    success: 'Password updated. Sign in with your new password.',
-  },
-  'confirm-email': {
-    title: 'Confirm your new email.',
-    description: 'Your account will use this address once you confirm.',
-    label: 'Confirm email',
-    success: 'Email updated. Sign in with your new address.',
-  },
-  'accept-invite': {
-    title: 'You’re invited.',
-    description:
-      'Sign in with the email that received this invitation, verify it, then join your team.',
-    label: 'Join workspace',
-    success: 'You’re in. Find your new team in the workspace switcher.',
-  },
-};
 export function TokenPage({ flow }: { flow: TokenFlow }) {
+  const { t } = useTranslation();
+  const tokenCopy: Record<
+    TokenFlow,
+    { title: string; description: string; label: string; success: string }
+  > = {
+    'verify-email': {
+      title: t('One small step.'),
+      description: t('Confirm your email to unlock your workspace.'),
+      label: t('Verify email'),
+      success: t('Email verified. Your workspace is ready.'),
+    },
+    'reset-password': {
+      title: t('A fresh start.'),
+      description: t('Choose a new password for your account.'),
+      label: t('Reset password'),
+      success: t('Password updated. Sign in with your new password.'),
+    },
+    'confirm-email': {
+      title: t('Confirm your new email.'),
+      description: t('Your account will use this address once you confirm.'),
+      label: t('Confirm email'),
+      success: t('Email updated. Sign in with your new address.'),
+    },
+    'accept-invite': {
+      title: t('You’re invited.'),
+      description: t(
+        'Sign in with the email that received this invitation, verify it, then join your team.',
+      ),
+      label: t('Join workspace'),
+      success: t('You’re in. Find your new team in the workspace switcher.'),
+    },
+  };
+
   const [token] = useState(() => {
     const value = new URLSearchParams(window.location.hash.slice(1)).get('token');
     if (flow === 'accept-invite' && value) sessionStorage.setItem('appshell-invite', value);
@@ -243,7 +253,7 @@ export function TokenPage({ flow }: { flow: TokenFlow }) {
     <AuthLayout title={copy.title} description={copy.description}>
       {!token ? (
         <Notice kind="error">
-          This link is missing its token. Open the full link from your email.
+          {t('This link is missing its token. Open the full link from your email.')}
         </Notice>
       ) : done ? (
         <Notice kind="success">{copy.success}</Notice>
@@ -266,28 +276,28 @@ export function TokenPage({ flow }: { flow: TokenFlow }) {
         >
           {flow === 'reset-password' && (
             <Field
-              label="New password"
+              label={t('New password')}
               name="password"
               type="password"
               autoComplete="new-password"
               minLength={12}
               required
-              hint="At least 12 characters."
+              hint={t('At least 12 characters.')}
             />
           )}
         </ActionForm>
       )}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <ButtonLink variant="secondary" to="/login">
-          Sign in
+          {t('Sign in')}
         </ButtonLink>
         {flow === 'accept-invite' && (
           <ButtonLink variant="secondary" to="/signup">
-            Create an account
+            {t('Create an account')}
           </ButtonLink>
         )}
         <ButtonLink variant="quiet" to="/app">
-          Go to workspace
+          {t('Go to workspace')}
         </ButtonLink>
       </div>
     </AuthLayout>

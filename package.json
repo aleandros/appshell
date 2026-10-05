@@ -14,7 +14,7 @@
     "test": "node --test scripts/*.test.mjs && npm run test -w apps/web",
     "test:e2e": "node scripts/wait-for-api.mjs && npm run test:e2e -w apps/web",
     "generate:api": "docker compose run --rm --no-deps api cargo run --locked --bin export-openapi > openapi.json && npm run generate:api -w apps/web",
-    "check:web": "npm run check -w apps/web && npm run lint:scripts && npm run check -w @appshell/ui",
+    "check:web": "npm run check -w apps/web && npm run lint:scripts && npm run check -w @appshell/ui && npm run check:i18n",
     "check:site": "eslint site/main.js --config site/eslint.config.mjs --max-warnings 0",
     "check:architecture": "node scripts/check-architecture.mjs && node scripts/rust.mjs test --locked --test architecture",
     "check:rust": "node scripts/rust.mjs clippy --workspace --all-targets --features lambda,ses --locked -- -D warnings && node scripts/rust.mjs clippy --workspace --all-targets --no-default-features --features dynamodb,lambda,ses --locked -- -D warnings",
@@ -38,7 +38,8 @@
     "test:dynamodb": "node scripts/test-dynamodb.mjs",
     "dev:sam": "node scripts/sam-local.mjs",
     "test:sam": "node scripts/sam-local.mjs --test",
-    "test:aws": "node scripts/test-aws.mjs"
+    "test:aws": "node scripts/test-aws.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "engines": {
     "node": ">=22.12"

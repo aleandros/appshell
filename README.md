@@ -210,6 +210,19 @@ preserved by the additive migration; restarting the API applies it.
 
 The `identities` table is an extension point for OIDC/OAuth/passkeys. Email/password works today; provider redirects, account linking, MFA, and passkeys are not implemented. Link future identities only after proving ownership; don't auto-link solely by an unverified provider email.
 
+## Languages
+
+The app starts with English only. Configure supported languages and the default in
+`apps/web/src/config/i18n.json`, then add translated catalogs under
+`apps/web/src/config/locales/`. Initial language follows a saved user choice,
+browser language/region preferences, then the configured default. A language
+switcher appears only when more than one language is enabled.
+
+Set `checkMissingTranslations` to `true` to include translation completeness in
+frontend checks and CI, or run `npm run check:i18n -- --strict` once. See the
+[internationalization guide](docs/internationalization.md) for adding languages,
+lazy loading, plurals, formatting and backend boundaries.
+
 ## API contracts and checks
 
 ```sh

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, Select } from '@appshell/ui';
 import { ButtonLink, CardLink } from '../components/links';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -52,6 +53,7 @@ function useBilling() {
   });
 }
 export function VerificationBanner() {
+  const { t } = useTranslation();
   const { session } = useWorkspace();
   const mutation = useMutation({
     mutationFn: identityApi.resendVerification,
@@ -62,28 +64,33 @@ export function VerificationBanner() {
       <Notice>
         <div className="flex flex-wrap items-center gap-3">
           <div>
-            <strong>One small step: verify your email.</strong>
-            <p>We sent a link to {session.user.email}. Open it to activate your workspace.</p>
+            <strong>{t('One small step: verify your email.')}</strong>
+            <p>
+              {t('We sent a link to {{email}}. Open it to activate your workspace.', {
+                email: session.user.email,
+              })}
+            </p>
           </div>
           <Button
             variant="secondary"
             pending={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            Resend link
+            {t('Resend link')}
           </Button>
         </div>
       </Notice>
       {mutation.isSuccess && (
         <p role="status" className="mt-2 text-sm text-primary">
-          Verification email sent. Check your inbox.
+          {t('Verification email sent. Check your inbox.')}
         </p>
       )}
-      {mutation.isError && <Notice kind="error">{errorMessage(mutation.error)}</Notice>}
+      {mutation.isError && <Notice kind="error">{errorMessage(mutation.error, t)}</Notice>}
     </div>
   );
 }
 export function OverviewPage() {
+  const { t } = useTranslation();
   const { session, organization } = useWorkspace();
   const team = useTeam();
   const billing = useBilling();
@@ -91,12 +98,12 @@ export function OverviewPage() {
   return (
     <>
       <PageHeading
-        eyebrow="YOUR WORKSPACE, AT A GLANCE"
-        title={`Hello, ${session.user.name.split(' ')[0] ?? 'there'}.`}
-        description="A little structure for your next big thing."
+        eyebrow={t('YOUR WORKSPACE, AT A GLANCE')}
+        title={t('Hello, {{name}}.', { name: session.user.name.split(' ')[0] ?? t('there') })}
+        description={t('A little structure for your next big thing.')}
         action={
           <ButtonLink variant="secondary" to="/app/team">
-            <Plus size={16} /> Invite a teammate
+            <Plus size={16} /> {t('Invite a teammate')}
           </ButtonLink>
         }
       />
@@ -104,20 +111,23 @@ export function OverviewPage() {
       <section className="relative mb-6 flex min-h-60 items-center justify-between gap-5 overflow-hidden rounded-2xl border bg-accent/45 p-7 sm:px-9">
         <div className="relative z-10 max-w-md">
           <Badge>
-            <Sparkles size={12} /> A FRESH BEGINNING
+            <Sparkles size={12} /> {t('A FRESH BEGINNING')}
           </Badge>
           <h2 className="mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Good things grow here.
+            {t('Good things grow here.')}
           </h2>
           <p className="mt-3 max-w-sm leading-7 text-muted">
-            Welcome to {organization.name}. Make yourself at home, bring your people, and turn a
-            little possibility into something great.
+            {t(
+              'Welcome to {{workspace}}. Make yourself at home, bring your people, and turn a little possibility into something great.',
+              { workspace: organization.name },
+            )}
           </p>
           <Link
             to="/app/settings"
             className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-primary"
           >
-            Make it yours <ArrowRight size={15} />
+            {t('Make it yours')}
+            <ArrowRight size={15} />
           </Link>
         </div>
         <div className="absolute -right-12 bottom-5 opacity-25 sm:relative sm:right-auto sm:bottom-auto sm:mr-3 sm:shrink-0 sm:opacity-100">
@@ -128,25 +138,28 @@ export function OverviewPage() {
         {[
           {
             icon: Users,
-            label: 'Your people',
+            label: t('Your people'),
             value: team.data ? String(team.data.members.length) : verified ? '—' : '1',
-            note: 'A good team starts with you',
+            note: t('A good team starts with you'),
             to: '/app/team',
           },
           {
             icon: CreditCard,
-            label: 'Current plan',
-            value: billing.data?.subscription.plan ?? 'Free',
+            label: t('Current plan'),
+            value: billing.data?.subscription.plan === 'pro' ? t('Pro') : t('Free'),
             note: billing.data
-              ? `${billing.data.seats_used} of ${billing.data.seat_limit} seats in use`
-              : 'Room to grow at your pace',
+              ? t('{{used, number}} of {{limit, number}} seats in use', {
+                  used: billing.data.seats_used,
+                  limit: billing.data.seat_limit,
+                })
+              : t('Room to grow at your pace'),
             to: '/app/billing',
           },
           {
             icon: ShieldCheck,
-            label: 'Account status',
-            value: verified ? 'Verified' : 'One more step',
-            note: verified ? 'Your email is confirmed' : 'Check your inbox to get started',
+            label: t('Account status'),
+            value: verified ? t('Verified') : t('One more step'),
+            note: verified ? t('Your email is confirmed') : t('Check your inbox to get started'),
             to: '/app/settings',
           },
         ].map(({ icon: Icon, label, value, note, to }) => (
@@ -182,27 +195,29 @@ export function OverviewPage() {
       <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
         <Card className="p-6 sm:p-7">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">A few small steps</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t('A few small steps')}</h2>
             <Badge>
-              {1 + Number(verified) + Number((team.data?.members.length ?? 1) > 1)} / 3 complete
+              {t('{{complete, number}} / 3 complete', {
+                complete: 1 + Number(verified) + Number((team.data?.members.length ?? 1) > 1),
+              })}
             </Badge>
           </div>
           {[
             {
-              title: 'Create your workspace',
-              description: 'A space to call your own.',
+              title: t('Create your workspace'),
+              description: t('A space to call your own.'),
               done: true,
               to: '/app',
             },
             {
-              title: 'Verify your email',
-              description: 'Keep your account in good hands.',
+              title: t('Verify your email'),
+              description: t('Keep your account in good hands.'),
               done: verified,
               to: '/app/settings',
             },
             {
-              title: 'Bring your first teammate',
-              description: 'Good things are better together.',
+              title: t('Bring your first teammate'),
+              description: t('Good things are better together.'),
               done: (team.data?.members.length ?? 1) > 1,
               to: '/app/team',
             },
@@ -230,14 +245,18 @@ export function OverviewPage() {
             <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-muted text-primary">
               <Users size={22} />
             </span>
-            <h2 className="text-xl font-semibold tracking-tight">Your people. Your space.</h2>
+            <h2 className="text-xl font-semibold tracking-tight">
+              {t('Your people. Your space.')}
+            </h2>
             <p className="mt-3 text-sm leading-7 text-muted">
-              One workspace for the things you share. Invite a collaborator and start building
-              something together.
+              {t(
+                'One workspace for the things you share. Invite a collaborator and start building something together.',
+              )}
             </p>
           </div>
           <ButtonLink variant="secondary" to="/app/team" className="mt-6 self-start">
-            Meet your team <ArrowRight size={15} />
+            {t('Meet your team')}
+            <ArrowRight size={15} />
           </ButtonLink>
         </Card>
       </div>
@@ -245,6 +264,7 @@ export function OverviewPage() {
   );
 }
 export function TeamPage() {
+  const { t, i18n } = useTranslation();
   const { organization, session } = useWorkspace();
   const team = useTeam();
   const [showInvite, setShowInvite] = useState(false);
@@ -260,16 +280,16 @@ export function TeamPage() {
   return (
     <>
       <PageHeading
-        eyebrow="BETTER TOGETHER"
-        title="Your people."
-        description="A shared space for the people who make it happen."
+        eyebrow={t('BETTER TOGETHER')}
+        title={t('Your people.')}
+        description={t('A shared space for the people who make it happen.')}
         action={
           canManage && (
             <Button
               onClick={() => setShowInvite(!showInvite)}
               disabled={!session.user.email_verified_at}
             >
-              <Plus size={16} /> {showInvite ? 'Close invitation form' : 'Invite a teammate'}
+              <Plus size={16} /> {showInvite ? t('Close invitation form') : t('Invite a teammate')}
             </Button>
           )
         }
@@ -277,41 +297,43 @@ export function TeamPage() {
       <VerificationBanner />
       {showInvite && (
         <Card className="mb-6 max-w-lg p-6">
-          <h2 className="mb-5 text-lg font-semibold">A little invitation goes a long way.</h2>
+          <h2 className="mb-5 text-lg font-semibold">
+            {t('A little invitation goes a long way.')}
+          </h2>
           <ActionForm
             schema={z.object({ email, role: z.enum(['admin', 'member']) })}
-            label="Send invitation"
+            label={t('Send invitation')}
             submit={(body) => organizationsApi.invite(organization.id, body)}
-            successMessage="Invitation sent. Your teammate will receive a link by email."
+            successMessage={t('Invitation sent. Your teammate will receive a link by email.')}
             onSuccess={async () => {
               await queryClient.invalidateQueries({ queryKey: ['team', organization.id] });
             }}
           >
             <Field
-              label="Email address"
+              label={t('Email address')}
               name="email"
               type="email"
-              placeholder="teammate@company.com"
+              placeholder={t('teammate@company.com')}
               required
             />
             <div>
               <label htmlFor="invite-role" className="label">
-                Role
+                {t('Role')}
               </label>
               <Select id="invite-role" name="role" defaultValue="member">
-                <option value="member">Member — collaborate in the workspace</option>
+                <option value="member">{t('Member — collaborate in the workspace')}</option>
                 {organization.role === 'owner' && (
-                  <option value="admin">Admin — manage team invitations</option>
+                  <option value="admin">{t('Admin — manage team invitations')}</option>
                 )}
               </Select>
             </div>
           </ActionForm>
         </Card>
       )}
-      {remove.isError && <Notice kind="error">{errorMessage(remove.error)}</Notice>}
-      {remove.isSuccess && <Notice kind="success">{remove.data.message}</Notice>}
+      {remove.isError && <Notice kind="error">{errorMessage(remove.error, t)}</Notice>}
+      {remove.isSuccess && <Notice kind="success">{t('Workspace updated.')}</Notice>}
       {!session.user.email_verified_at ? null : team.isPending ? (
-        <Loading label="Loading team members…" />
+        <Loading label={t('Loading team members…')} />
       ) : team.isError ? (
         <ErrorState error={team.error} retry={() => void team.refetch()} />
       ) : (
@@ -319,11 +341,11 @@ export function TeamPage() {
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b p-6">
               <h2 className="font-semibold">
-                Workspace members{' '}
+                {t('Workspace members')}{' '}
                 <span className="ml-2 text-muted">{team.data.members.length}</span>
               </h2>
               <Badge>
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Private workspace
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {t('Private workspace')}
               </Badge>
             </div>
             <div className="divide-y">
@@ -336,12 +358,12 @@ export function TeamPage() {
                     <p className="truncate font-medium">
                       {member.name}
                       {member.id === session.user.id && (
-                        <span className="ml-2 text-xs font-normal text-muted">(you)</span>
+                        <span className="ml-2 text-xs font-normal text-muted">{t('(you)')}</span>
                       )}
                     </p>
                     <p className="mt-1 truncate text-xs text-muted">{member.email}</p>
                   </div>
-                  <Badge>{member.role}</Badge>
+                  <Badge>{t(member.role)}</Badge>
                   {canManage &&
                     member.role !== 'owner' &&
                     (organization.role === 'owner' || member.role !== 'admin') &&
@@ -350,11 +372,15 @@ export function TeamPage() {
                         variant="quiet"
                         pending={remove.isPending}
                         onClick={() => {
-                          if (window.confirm(`Remove ${member.name} from this workspace?`))
+                          if (
+                            window.confirm(
+                              t('Remove {{name}} from this workspace?', { name: member.name }),
+                            )
+                          )
                             remove.mutate({ id: member.id, kind: 'members' });
                         }}
                       >
-                        Remove
+                        {t('Remove')}
                       </Button>
                     )}
                 </div>
@@ -362,13 +388,13 @@ export function TeamPage() {
             </div>
           </Card>
           <Card className="mt-6 p-6">
-            <h2 className="font-semibold">Pending invitations</h2>
+            <h2 className="font-semibold">{t('Pending invitations')}</h2>
             {team.data.invitations.length === 0 ? (
               <div className="py-10 text-center">
                 <Mail size={27} className="mx-auto mb-4 text-muted/60" />
-                <h3 className="font-medium">No invitations in the air.</h3>
+                <h3 className="font-medium">{t('No invitations in the air.')}</h3>
                 <p className="mt-2 text-sm text-muted">
-                  Your next great collaborator could be one invite away.
+                  {t('Your next great collaborator could be one invite away.')}
                 </p>
               </div>
             ) : (
@@ -380,7 +406,10 @@ export function TeamPage() {
                   <div className="min-w-0">
                     <p className="break-all text-sm font-medium">{invite.email}</p>
                     <p className="mt-1 text-xs text-muted">
-                      {invite.role} · Expires {new Date(invite.expires_at).toLocaleDateString()}
+                      {t('{{role}} · Expires {{date}}', {
+                        role: t(invite.role),
+                        date: new Date(invite.expires_at).toLocaleDateString(i18n.language),
+                      })}
                     </p>
                   </div>
                   {canManage && (
@@ -389,7 +418,7 @@ export function TeamPage() {
                       pending={remove.isPending}
                       onClick={() => remove.mutate({ id: invite.id, kind: 'invitations' })}
                     >
-                      Revoke
+                      {t('Revoke')}
                     </Button>
                   )}
                 </div>
@@ -402,6 +431,7 @@ export function TeamPage() {
   );
 }
 export function BillingPage() {
+  const { t, i18n } = useTranslation();
   const { organization, session } = useWorkspace();
   const billing = useBilling();
   const mutation = useMutation({
@@ -413,16 +443,16 @@ export function BillingPage() {
         parsed.protocol !== 'https:' ||
         !['checkout.stripe.com', 'billing.stripe.com'].includes(parsed.hostname)
       )
-        throw new Error('Invalid billing destination.');
+        throw new Error(t('Invalid billing destination.'));
       window.location.assign(url);
     },
   });
   return (
     <>
       <PageHeading
-        eyebrow="ROOM TO GROW"
-        title="Your pace. Your plan."
-        description="Start small. Make room when you’re ready."
+        eyebrow={t('ROOM TO GROW')}
+        title={t('Your pace. Your plan.')}
+        description={t('Start small. Make room when you’re ready.')}
       />
       <VerificationBanner />
       {!session.user.email_verified_at ? null : billing.isPending ? (
@@ -433,57 +463,71 @@ export function BillingPage() {
         <>
           <Card className="mb-6 flex flex-wrap items-center justify-between gap-5 p-7">
             <div>
-              <p className="eyebrow">YOUR CURRENT PLAN</p>
+              <p className="eyebrow">{t('YOUR CURRENT PLAN')}</p>
               <div className="mt-3 flex items-center gap-3">
                 <h2 className="text-2xl font-semibold capitalize">
-                  {billing.data.subscription.plan}
+                  {billing.data.subscription.plan === 'pro' ? t('Pro') : t('Free')}
                 </h2>
-                <Badge>{billing.data.subscription.status.replaceAll('_', ' ')}</Badge>
+                <Badge>
+                  {t(billing.data.subscription.status, {
+                    defaultValue: billing.data.subscription.status.replaceAll('_', ' '),
+                  })}
+                </Badge>
               </div>
               <p className="mt-3 text-sm text-muted">
-                {billing.data.seats_used} of {billing.data.seat_limit} seats in use
+                {t('{{used, number}} of {{limit, number}} seats in use', {
+                  used: billing.data.seats_used,
+                  limit: billing.data.seat_limit,
+                })}
                 {billing.data.subscription.current_period_end &&
-                  ` · Current period ends ${new Date(billing.data.subscription.current_period_end).toLocaleDateString()}`}
+                  t(' · Current period ends {{date}}', {
+                    date: new Date(billing.data.subscription.current_period_end).toLocaleDateString(
+                      i18n.language,
+                    ),
+                  })}
               </p>
             </div>
             <CreditCard size={36} strokeWidth={1.2} className="text-primary" />
           </Card>
           {!billing.data.billing_enabled && (
             <Notice>
-              Paid plans aren’t enabled for this installation yet. Your free workspace is ready to
-              use.
+              {t(
+                'Paid plans aren’t enabled for this installation yet. Your free workspace is ready to use.',
+              )}
             </Notice>
           )}
-          {mutation.isError && <Notice kind="error">{errorMessage(mutation.error)}</Notice>}
+          {mutation.isError && <Notice kind="error">{errorMessage(mutation.error, t)}</Notice>}
           <div className="mt-6 grid gap-6 md:grid-cols-2">
             {[
               {
                 plan: 'Free',
-                tag: 'FOR SMALL BEGINNINGS',
-                description: 'A comfortable place to get started.',
+                tag: t('FOR SMALL BEGINNINGS'),
+                description: t('A comfortable place to get started.'),
                 features: [
-                  'Up to 3 workspace members',
-                  'Private organization workspace',
-                  'All account and security essentials',
+                  t('Up to 3 workspace members'),
+                  t('Private organization workspace'),
+                  t('All account and security essentials'),
                 ],
               },
               {
                 plan: 'Pro',
-                tag: 'FOR GROWING TOGETHER',
-                description: 'A little more room for your next chapter.',
+                tag: t('FOR GROWING TOGETHER'),
+                description: t('A little more room for your next chapter.'),
                 features: [
-                  'Up to 50 workspace members',
-                  'Everything in Free',
-                  'Self-service subscription management',
+                  t('Up to 50 workspace members'),
+                  t('Everything in Free'),
+                  t('Self-service subscription management'),
                 ],
               },
             ].map(({ plan, tag, description, features }) => (
               <Card key={plan} className={`p-7 ${plan === 'Pro' ? 'border-primary/50' : ''}`}>
                 <p className="eyebrow">{tag}</p>
-                <h2 className="mt-4 text-3xl font-semibold">{plan}</h2>
+                <h2 className="mt-4 text-3xl font-semibold">
+                  {plan === 'Pro' ? t('Pro') : t('Free')}
+                </h2>
                 <p className="mt-3 text-sm text-muted">{description}</p>
                 <p className="mt-6 text-lg font-medium">
-                  {plan === 'Free' ? '$0 / forever' : 'See price at checkout'}
+                  {plan === 'Free' ? t('$0 / forever') : t('See price at checkout')}
                 </p>
                 <ul className="my-7 space-y-4">
                   {features.map((feature) => (
@@ -494,7 +538,7 @@ export function BillingPage() {
                   ))}
                 </ul>
                 {plan === 'Free' ? (
-                  <Badge>Included with every workspace</Badge>
+                  <Badge>{t('Included with every workspace')}</Badge>
                 ) : (
                   <Button
                     className="w-full"
@@ -507,8 +551,8 @@ export function BillingPage() {
                     }
                   >
                     {billing.data.subscription.plan === 'pro'
-                      ? 'Manage subscription'
-                      : 'Explore Pro'}
+                      ? t('Manage subscription')
+                      : t('Explore Pro')}
                     <ArrowUpRight size={16} />
                   </Button>
                 )}
@@ -516,7 +560,9 @@ export function BillingPage() {
             ))}
           </div>
           {organization.role !== 'owner' && (
-            <p className="mt-5 text-sm text-muted">Only the workspace owner can change billing.</p>
+            <p className="mt-5 text-sm text-muted">
+              {t('Only the workspace owner can change billing.')}
+            </p>
           )}
         </>
       )}
@@ -524,43 +570,46 @@ export function BillingPage() {
   );
 }
 export function SettingsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { session } = useWorkspace();
   return (
     <>
       <PageHeading
-        eyebrow="MAKE YOURSELF AT HOME"
-        title="Your settings."
-        description="The little details that make this space yours."
+        eyebrow={t('MAKE YOURSELF AT HOME')}
+        title={t('Your settings.')}
+        description={t('The little details that make this space yours.')}
       />
       <VerificationBanner />
       <div className="grid items-start gap-6 xl:grid-cols-2">
         <Card className="p-7">
-          <h2 className="text-lg font-semibold">Your account</h2>
+          <h2 className="text-lg font-semibold">{t('Your account')}</h2>
           <div className="mt-6 space-y-4">
             <div>
-              <p className="eyebrow">NAME</p>
+              <p className="eyebrow">{t('NAME')}</p>
               <p className="mt-2">{session.user.name}</p>
             </div>
             <div>
-              <p className="eyebrow">EMAIL</p>
+              <p className="eyebrow">{t('EMAIL')}</p>
               <p className="mt-2 break-all">{session.user.email}</p>
             </div>
           </div>
           <div className="mt-7 border-t pt-6">
-            <h3 className="font-medium">Appearance</h3>
-            <p className="mt-2 mb-4 text-sm text-muted">A look that feels right, day or night.</p>
+            <h3 className="font-medium">{t('Appearance')}</h3>
+            <p className="mt-2 mb-4 text-sm text-muted">
+              {t('A look that feels right, day or night.')}
+            </p>
             <ThemeSwitcher />
           </div>
         </Card>
         <Card className="p-7">
-          <h2 className="mb-2 text-lg font-semibold">Change your password</h2>
+          <h2 className="mb-2 text-lg font-semibold">{t('Change your password')}</h2>
           <p className="mb-6 text-sm leading-6 text-muted">
-            Updating your password signs you out on every device.
+            {t('Updating your password signs you out on every device.')}
           </p>
           <ActionForm
             schema={z.object({ current_password: z.string().min(1), password })}
-            label="Update password"
+            label={t('Update password')}
             submit={(body) => identityApi.changePassword(body)}
             onSuccess={async () => {
               queryClient.clear();
@@ -568,44 +617,45 @@ export function SettingsPage() {
             }}
           >
             <Field
-              label="Current password"
+              label={t('Current password')}
               name="current_password"
               type="password"
               autoComplete="current-password"
               required
             />
             <Field
-              label="New password"
+              label={t('New password')}
               name="password"
               type="password"
               autoComplete="new-password"
               minLength={12}
-              hint="At least 12 characters."
+              hint={t('At least 12 characters.')}
               required
             />
           </ActionForm>
         </Card>
         <Card className="p-7">
-          <h2 className="mb-2 text-lg font-semibold">Change your email</h2>
+          <h2 className="mb-2 text-lg font-semibold">{t('Change your email')}</h2>
           <p className="mb-6 text-sm leading-6 text-muted">
-            We’ll send a confirmation link to your new address. Your current email stays active
-            until you confirm.
+            {t(
+              'We’ll send a confirmation link to your new address. Your current email stays active until you confirm.',
+            )}
           </p>
           <ActionForm
             schema={z.object({ email, password: z.string().min(1) })}
-            label="Send confirmation"
+            label={t('Send confirmation')}
             submit={(body) => identityApi.changeEmail(body)}
-            successMessage="Check your new inbox for a confirmation link."
+            successMessage={t('Check your new inbox for a confirmation link.')}
           >
             <Field
-              label="New email address"
+              label={t('New email address')}
               name="email"
               type="email"
               autoComplete="email"
               required
             />
             <Field
-              label="Current password"
+              label={t('Current password')}
               name="password"
               type="password"
               autoComplete="current-password"
@@ -618,19 +668,20 @@ export function SettingsPage() {
   );
 }
 export function NewWorkspacePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   return (
     <>
       <PageHeading
-        eyebrow="A NEW CHAPTER"
-        title="Create a workspace."
-        description="Give your next idea a space of its own."
+        eyebrow={t('A NEW CHAPTER')}
+        title={t('Create a workspace.')}
+        description={t('Give your next idea a space of its own.')}
       />
       <VerificationBanner />
       <Card className="max-w-lg p-7">
         <ActionForm
           schema={z.object({ name })}
-          label="Create workspace"
+          label={t('Create workspace')}
           submit={(body) => organizationsApi.create(body)}
           onSuccess={async () => {
             await queryClient.invalidateQueries({ queryKey: ['session'] });
@@ -638,9 +689,9 @@ export function NewWorkspacePage() {
           }}
         >
           <Field
-            label="Workspace name"
+            label={t('Workspace name')}
             name="name"
-            placeholder="Your next big thing"
+            placeholder={t('Your next big thing')}
             maxLength={80}
             required
           />

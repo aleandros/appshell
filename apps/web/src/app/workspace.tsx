@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from '../components/language-switcher';
+import { useTranslation } from 'react-i18next';
 import { Select } from '@appshell/ui';
 import { NavigationLink } from '../components/links';
 import { useState } from 'react';
@@ -22,13 +24,15 @@ import { identityApi, sessionQuery } from '../features/identity';
 import { Badge, Button, Logo, Notice } from '../components/ui';
 import { ThemeSwitcher } from '../components/theme';
 
-const links = [
-  { to: '/app', label: 'Overview', icon: LayoutDashboard },
-  { to: '/app/team', label: 'Team members', icon: Users },
-  { to: '/app/billing', label: 'Plans & billing', icon: CreditCard },
-  { to: '/app/settings', label: 'Settings', icon: Settings2 },
-] as const;
 export function WorkspaceLayout() {
+  const { t } = useTranslation();
+  const links = [
+    { to: '/app', label: t('Overview'), icon: LayoutDashboard },
+    { to: '/app/team', label: t('Team members'), icon: Users },
+    { to: '/app/billing', label: t('Plans & billing'), icon: CreditCard },
+    { to: '/app/settings', label: t('Settings'), icon: Settings2 },
+  ] as const;
+
   const { data: session } = useSuspenseQuery(sessionQuery);
   const navigate = useNavigate();
   const [chosen, setChosen] = useState<string | null>(null);
@@ -45,22 +49,24 @@ export function WorkspaceLayout() {
   if (!organization)
     return (
       <div className="mx-auto max-w-lg p-8">
-        <Notice>Your account has no workspace. Sign out and contact the workspace owner.</Notice>
+        <Notice>
+          {t('Your account has no workspace. Sign out and contact the workspace owner.')}
+        </Notice>
         <Button onClick={() => logout.mutate()} pending={logout.isPending}>
-          Sign out
+          {t('Sign out')}
         </Button>
       </div>
     );
   const sidebar = (
     <>
       <div className="mb-9 flex items-center justify-between">
-        <Link to="/" aria-label="AppShell home">
+        <Link to="/" aria-label={t('AppShell home')}>
           <Logo />
         </Link>
         <Button
           variant="quiet"
           onClick={() => setOpen(false)}
-          aria-label="Close navigation"
+          aria-label={t('Close navigation')}
           className="lg:hidden"
         >
           <X size={20} />
@@ -68,7 +74,7 @@ export function WorkspaceLayout() {
       </div>
       <div className="relative mb-8">
         <label className="sr-only" htmlFor="workspace">
-          Current workspace
+          {t('Current workspace')}
         </label>
         <Select
           id="workspace"
@@ -87,8 +93,8 @@ export function WorkspaceLayout() {
         </Select>
         <ChevronDown size={15} className="pointer-events-none absolute top-4 right-3 text-muted" />
       </div>
-      <p className="eyebrow mb-3 px-3.5">WORKSPACE</p>
-      <nav className="space-y-1" aria-label="Workspace navigation">
+      <p className="eyebrow mb-3 px-3.5">{t('WORKSPACE')}</p>
+      <nav className="space-y-1" aria-label={t('Workspace navigation')}>
         {links.map(({ to, label, icon: Icon }) => (
           <NavigationLink
             key={to}
@@ -103,23 +109,24 @@ export function WorkspaceLayout() {
         ))}
       </nav>
       <NavigationLink to="/app/new-workspace" className="mt-4" onClick={() => setOpen(false)}>
-        <Plus size={18} /> New workspace
+        <Plus size={18} /> {t('New workspace')}
       </NavigationLink>
       <div className="mt-auto pt-10">
         <div className="rounded-2xl border bg-background p-4">
           <span className="text-lg">✦</span>
-          <p className="mt-3 text-sm font-semibold">A little room to grow.</p>
+          <p className="mt-3 text-sm font-semibold">{t('A little room to grow.')}</p>
           <p className="mt-2 text-xs leading-5 text-muted">
-            More people. More possibilities.
+            {t('More people. More possibilities.')}
             <br />
-            Find the plan that fits your team.
+            {t('Find the plan that fits your team.')}
           </p>
           <Link
             to="/app/billing"
             className="mt-4 flex items-center justify-between text-xs font-semibold text-primary"
             onClick={() => setOpen(false)}
           >
-            Explore plans <ArrowUpRight size={15} />
+            {t('Explore plans')}
+            <ArrowUpRight size={15} />
           </Link>
         </div>
         <div className="mt-6 flex items-center gap-3 border-t pt-5">
@@ -132,7 +139,7 @@ export function WorkspaceLayout() {
           </div>
           <Button
             variant="quiet"
-            aria-label="Sign out"
+            aria-label={t('Sign out')}
             onClick={() => logout.mutate()}
             disabled={logout.isPending}
             className="px-2"
@@ -140,14 +147,14 @@ export function WorkspaceLayout() {
             <LogOut size={17} />
           </Button>
         </div>
-        {logout.isError && <Notice kind="error">{errorMessage(logout.error)}</Notice>}
+        {logout.isError && <Notice kind="error">{errorMessage(logout.error, t)}</Notice>}
       </div>
     </>
   );
   return (
     <WorkspaceContext.Provider value={{ session, organization }}>
       <a href="#main-content" className="sr-only z-50 bg-surface p-3 focus:not-sr-only focus:fixed">
-        Skip to content
+        {t('Skip to content')}
       </a>
       <div className="min-h-dvh lg:pl-64">
         <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col overflow-y-auto overscroll-contain border-r bg-surface p-6 lg:flex">
@@ -158,32 +165,35 @@ export function WorkspaceLayout() {
             {sidebar}
           </div>
         )}
-        <header className="flex min-h-20 items-center justify-between gap-4 border-b bg-surface/65 px-5 sm:px-10">
+        <header className="flex min-h-20 items-center justify-between flex-wrap gap-4 border-b bg-surface/65 py-3 px-5 sm:px-10">
           <div className="flex items-center gap-3">
             <Button
               variant="quiet"
               className="-ml-3 lg:hidden"
-              aria-label="Open navigation"
+              aria-label={t('Open navigation')}
               aria-expanded={open}
               onClick={() => setOpen(true)}
             >
               <Menu size={21} />
             </Button>
-            <span className="hidden text-xs text-muted sm:inline">Workspace</span>
+            <span className="hidden text-xs text-muted sm:inline">{t('Workspace')}</span>
             <span className="hidden text-border sm:inline">/</span>
             <span className="max-w-32 truncate text-xs font-medium sm:max-w-64">
               {organization.name}
             </span>
-            <Badge>{organization.role}</Badge>
+            <Badge>{t(organization.role)}</Badge>
           </div>
-          <ThemeSwitcher />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <LanguageSwitcher />
+            <ThemeSwitcher />
+          </div>
         </header>
         <main id="main-content" className="mx-auto max-w-7xl p-5 py-8 sm:p-10 lg:p-12">
           <Outlet />
         </main>
         <footer className="mx-auto flex max-w-7xl flex-wrap justify-between gap-2 px-5 pt-5 pb-8 text-[11px] text-muted sm:px-10 lg:px-12">
-          <span>AppShell · Space to build.</span>
-          <span>Thoughtfully simple. Endlessly yours.</span>
+          <span>{t('AppShell · Space to build.')}</span>
+          <span>{t('Thoughtfully simple. Endlessly yours.')}</span>
         </footer>
       </div>
     </WorkspaceContext.Provider>

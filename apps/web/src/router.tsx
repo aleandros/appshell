@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './components/language-switcher';
 import { AdminLoginPage, AdminPage } from './pages/admin';
 import { adminSessionQuery } from './features/admin';
 import { ButtonLink } from './components/links';
@@ -22,26 +24,36 @@ import {
   SettingsPage,
   TeamPage,
 } from './pages/workspace';
-const root = createRootRoute({
-  component: Outlet,
-  errorComponent: ({ error, reset }) => (
+function RouteError({ error, reset }: { error: unknown; reset: () => void }) {
+  const { t } = useTranslation();
+  return (
     <div className="p-8">
+      <LanguageSwitcher />
       <ErrorState error={error} retry={reset} />
       <ButtonLink variant="secondary" to="/">
-        Back to home
+        {t('Back to home')}
       </ButtonLink>
     </div>
-  ),
-  notFoundComponent: () => (
+  );
+}
+function NotFound() {
+  const { t } = useTranslation();
+  return (
     <div className="mx-auto max-w-lg space-y-5 p-10">
-      <p className="eyebrow">404 · A LITTLE OFF TRACK</p>
-      <h1 className="page-title">This space isn’t here.</h1>
-      <p className="text-muted">The page may have moved, or the link might be incomplete.</p>
+      <LanguageSwitcher />
+      <p className="eyebrow">{t('404 · A LITTLE OFF TRACK')}</p>
+      <h1 className="page-title">{t('This space isn’t here.')}</h1>
+      <p className="text-muted">{t('The page may have moved, or the link might be incomplete.')}</p>
       <ButtonLink variant="primary" to="/">
-        Back to home
+        {t('Back to home')}
       </ButtonLink>
     </div>
-  ),
+  );
+}
+const root = createRootRoute({
+  component: Outlet,
+  errorComponent: RouteError,
+  notFoundComponent: NotFound,
 });
 const landing = createRoute({ getParentRoute: () => root, path: '/', component: Landing });
 const login = createRoute({ getParentRoute: () => root, path: '/login', component: LoginPage });

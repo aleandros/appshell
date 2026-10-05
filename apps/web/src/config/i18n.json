@@ -1,0 +1,5 @@
+{
+  "defaultLanguage": "en",
+  "languages": [{ "tag": "en", "label": "English", "direction": "ltr" }],
+  "checkMissingTranslations": false
+}
