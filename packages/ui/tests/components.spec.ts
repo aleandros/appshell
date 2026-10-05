@@ -19,8 +19,10 @@ for (const theme of ['light', 'dark']) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     for (const story of stories) {
+      // Playwright owns the Axe scan on these pages. Leave the addon in manual
+      // mode here so its render-time scan cannot race with analyze() below.
       await page.goto(
-        `/iframe.html?id=design-system-controls--${story}&viewMode=story&globals=theme:${theme}`,
+        `/iframe.html?id=design-system-controls--${story}&viewMode=story&globals=theme:${theme};a11y.manual:!true`,
       );
       await expect(page.locator('#storybook-root > div')).toBeVisible();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
