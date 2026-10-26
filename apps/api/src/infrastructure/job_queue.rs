@@ -28,6 +28,6 @@ pub(crate) fn enqueue(
     }
     c.jobs_enqueue(
         serde_json::to_value(job).map_err(ApiError::internal)?,
-        delay_seconds as i32,
+        i32::try_from(delay_seconds).map_err(ApiError::internal)?,
     )
 }

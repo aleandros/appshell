@@ -4,7 +4,10 @@ use crate::{
     error::Result,
     http::error::ApiJson,
     http::security::{self, Auth},
-    models::*,
+    models::{
+        ChangeEmail, ChangePassword, EmailInput, Login, Message, ResetPassword, Session, Signup,
+        TokenInput,
+    },
 };
 use axum::{
     Json,
@@ -12,7 +15,7 @@ use axum::{
     http::{HeaderMap, header::SET_COOKIE},
 };
 #[utoipa::path(post,path="/api/auth/signup",request_body=Signup,responses((status=200,body=Session)))]
-pub async fn signup(
+pub(crate) async fn signup(
     State(state): State<AppState>,
     ApiJson(input): ApiJson<Signup>,
 ) -> Result<([(axum::http::HeaderName, String); 1], Json<Session>)> {
@@ -24,7 +27,7 @@ pub async fn signup(
     ))
 }
 #[utoipa::path(post,path="/api/auth/login",request_body=Login,responses((status=200,body=Session)))]
-pub async fn login(
+pub(crate) async fn login(
     State(state): State<AppState>,
     ApiJson(input): ApiJson<Login>,
 ) -> Result<([(axum::http::HeaderName, String); 1], Json<Session>)> {
@@ -36,11 +39,11 @@ pub async fn login(
     ))
 }
 #[utoipa::path(get,path="/api/auth/session",responses((status=200,body=Session)))]
-pub async fn me(State(state): State<AppState>, Auth(user): Auth) -> Result<Json<Session>> {
+pub(crate) async fn me(State(state): State<AppState>, Auth(user): Auth) -> Result<Json<Session>> {
     Ok(Json(service::me(state, user).await?))
 }
 #[utoipa::path(post,path="/api/auth/logout",responses((status=200,body=Message)))]
-pub async fn logout(
+pub(crate) async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<([(axum::http::HeaderName, String); 1], Json<Message>)> {
@@ -52,32 +55,35 @@ pub async fn logout(
     ))
 }
 #[utoipa::path(post,path="/api/auth/forgot-password",request_body=EmailInput,responses((status=200,body=Message)))]
-pub async fn forgot(
+pub(crate) async fn forgot(
     State(state): State<AppState>,
     ApiJson(input): ApiJson<EmailInput>,
 ) -> Result<Json<Message>> {
     Ok(Json(service::forgot(state, input).await?))
 }
 #[utoipa::path(post,path="/api/auth/reset-password",request_body=ResetPassword,responses((status=200,body=Message)))]
-pub async fn reset(
+pub(crate) async fn reset(
     State(state): State<AppState>,
     ApiJson(input): ApiJson<ResetPassword>,
 ) -> Result<Json<Message>> {
     Ok(Json(service::reset(state, input).await?))
 }
 #[utoipa::path(post,path="/api/auth/verify-email",request_body=TokenInput,responses((status=200,body=Message)))]
-pub async fn verify(
+pub(crate) async fn verify(
     State(state): State<AppState>,
     ApiJson(input): ApiJson<TokenInput>,
 ) -> Result<Json<Message>> {
     Ok(Json(service::verify(state, input).await?))
 }
 #[utoipa::path(post,path="/api/auth/resend-verification",responses((status=200,body=Message)))]
-pub async fn resend(State(state): State<AppState>, Auth(user): Auth) -> Result<Json<Message>> {
+pub(crate) async fn resend(
+    State(state): State<AppState>,
+    Auth(user): Auth,
+) -> Result<Json<Message>> {
     Ok(Json(service::resend(state, user).await?))
 }
 #[utoipa::path(post,path="/api/auth/change-password",request_body=ChangePassword,responses((status=200,body=Message)))]
-pub async fn change_password(
+pub(crate) async fn change_password(
     State(state): State<AppState>,
     Auth(user): Auth,
     ApiJson(input): ApiJson<ChangePassword>,
@@ -85,7 +91,7 @@ pub async fn change_password(
     Ok(Json(service::change_password(state, user, input).await?))
 }
 #[utoipa::path(post,path="/api/auth/change-email",request_body=ChangeEmail,responses((status=200,body=Message)))]
-pub async fn change_email(
+pub(crate) async fn change_email(
     State(state): State<AppState>,
     Auth(user): Auth,
     ApiJson(input): ApiJson<ChangeEmail>,
@@ -93,7 +99,7 @@ pub async fn change_email(
     Ok(Json(service::change_email(state, user, input).await?))
 }
 #[utoipa::path(post,path="/api/auth/confirm-email",request_body=TokenInput,responses((status=200,body=Message)))]
-pub async fn confirm_email(
+pub(crate) async fn confirm_email(
     State(state): State<AppState>,
     ApiJson(input): ApiJson<TokenInput>,
 ) -> Result<Json<Message>> {

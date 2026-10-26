@@ -16,7 +16,7 @@ impl IntoResponse for ApiError {
             .into_response()
     }
 }
-pub struct ApiJson<T>(pub T);
+pub(crate) struct ApiJson<T>(pub T);
 impl<S, T> axum::extract::FromRequest<S> for ApiJson<T>
 where
     S: Send + Sync,

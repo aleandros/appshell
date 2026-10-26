@@ -1,22 +1,30 @@
 use crate::{Result, RuleError};
+/// # Errors
+/// Returns `RuleError::Forbidden` unless the role is owner or admin.
 pub fn require_admin(role: &str) -> Result<()> {
     if !["owner", "admin"].contains(&role) {
         return Err(RuleError::Forbidden);
     }
     Ok(())
 }
+/// # Errors
+/// Returns `RuleError::Forbidden` unless the role is owner.
 pub fn require_owner(role: &str) -> Result<()> {
     if role != "owner" {
         return Err(RuleError::Forbidden);
     }
     Ok(())
 }
+/// # Errors
+/// Rejects invitation roles other than admin or member.
 pub fn invitation_role(role: &str) -> Result<()> {
     if !["admin", "member"].contains(&role) {
         return Err(RuleError::Invalid("Choose admin or member."));
     }
     Ok(())
 }
+/// # Errors
+/// Rejects unauthorized actors, invalid target roles, and existing members.
 pub fn allow_invitation(actor: &str, target: &str, existing_members: i64) -> Result<()> {
     require_admin(actor)?;
     invitation_role(target)?;
@@ -28,6 +36,8 @@ pub fn allow_invitation(actor: &str, target: &str, existing_members: i64) -> Res
     }
     Ok(())
 }
+/// # Errors
+/// Rejects an invitation or join when all available seats are reserved.
 pub fn seats_available(used: i64, limit: i64) -> Result<()> {
     if used >= limit {
         return Err(RuleError::Invalid(
@@ -36,6 +46,8 @@ pub fn seats_available(used: i64, limit: i64) -> Result<()> {
     }
     Ok(())
 }
+/// # Errors
+/// Rejects a signed-in email that differs from the invited email.
 pub fn invitation_recipient(invited: &str, signed_in: &str) -> Result<()> {
     if invited != signed_in {
         return Err(RuleError::Invalid(
@@ -44,6 +56,8 @@ pub fn invitation_recipient(invited: &str, signed_in: &str) -> Result<()> {
     }
     Ok(())
 }
+/// # Errors
+/// Rejects unauthorized actors, owner removal, and admin removal by a non-owner.
 pub fn allow_removal(actor: &str, target: &str) -> Result<()> {
     require_admin(actor)?;
     if target == "owner" {

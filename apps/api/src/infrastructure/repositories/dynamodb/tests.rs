@@ -1,4 +1,3 @@
-#![allow(clippy::unwrap_used)] // Disposable local integration fixtures fail fast.
 use super::*;
 use crate::{AppState, config::Config, router};
 use axum::{
@@ -36,6 +35,10 @@ async fn request(
     (status, serde_json::from_slice(&bytes).unwrap(), cookie)
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "The lifecycle scenario verifies related atomicity and isolation guarantees in one disposable table."
+)]
 async fn dynamodb_transactions_lifecycle_and_isolation() {
     let mut pool = crate::db::from_env()
         .await
@@ -101,7 +104,7 @@ async fn dynamodb_transactions_lifecycle_and_isolation() {
             .await
         }
     };
-    let (a, b) = tokio::join!(consume(barrier.clone()), consume(barrier));
+    let (a, b) = tokio::join!(consume(std::sync::Arc::clone(&barrier)), consume(barrier));
     assert_eq!(
         [a, b].into_iter().filter(|r| matches!(r, Ok(true))).count(),
         1
@@ -153,10 +156,10 @@ async fn dynamodb_transactions_lifecycle_and_isolation() {
         }
     };
     let (a, b) = tokio::join!(
-        invite(barrier.clone(), "seat-a@example.test"),
+        invite(std::sync::Arc::clone(&barrier), "seat-a@example.test"),
         invite(barrier, "seat-b@example.test")
     );
-    assert_eq!([a, b].into_iter().filter(Result::is_ok).count(), 1);
+    assert_eq!([a, b].into_iter().flatten().count(), 1);
     assert_eq!(
         run(pool.clone(), move |c| c
             .organizations_reserved_seats(org, true))

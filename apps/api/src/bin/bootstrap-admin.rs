@@ -1,5 +1,9 @@
 use std::io::{self, Read};
 #[tokio::main]
+#[expect(
+    clippy::print_stdout,
+    reason = "This CLI intentionally writes its result to standard output."
+)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut input = String::new();
     io::stdin().take(4096).read_to_string(&mut input)?;

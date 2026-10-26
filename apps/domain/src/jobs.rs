@@ -4,7 +4,7 @@ pub const HANDLER_TIMEOUT_SECONDS: u64 = 60;
 pub const LEASE_SECONDS: i32 = 120;
 
 pub fn retry_delay_seconds(attempt: i32) -> i32 {
-    5 * 2_i32.pow(attempt.clamp(1, 7) as u32 - 1).min(60)
+    5 * 2_i32.pow(attempt.clamp(1, 7).unsigned_abs() - 1).min(60)
 }
 
 #[cfg(test)]

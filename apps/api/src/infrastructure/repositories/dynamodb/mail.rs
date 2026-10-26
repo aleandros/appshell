@@ -1,4 +1,6 @@
-use super::*;
+use super::{
+    Result, UnitOfWork, Uuid, Value, active, decode, expires, fresh, id, json, key, now, number,
+};
 use crate::infrastructure::rows::Mail;
 impl UnitOfWork<'_> {
     pub(crate) fn mail_enqueue(

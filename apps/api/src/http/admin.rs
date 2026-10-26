@@ -3,7 +3,10 @@ use crate::{
     contexts::admin as service,
     error::{ApiError, Result},
     http::{error::ApiJson, security},
-    models::*,
+    models::{
+        AdminAccount, AdminSearch, CreateAdmin, HistoryEntry, Login, ManagedUser, Message,
+        UpdateAdmin, UpdateUser,
+    },
 };
 use axum::{
     Json,
@@ -12,7 +15,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-pub struct AdminAuth(pub AdminAccount);
+pub(crate) struct AdminAuth(pub AdminAccount);
 impl FromRequestParts<AppState> for AdminAuth {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self> {
@@ -21,6 +24,10 @@ impl FromRequestParts<AppState> for AdminAuth {
         Ok(Self(service::authenticate(state, token).await?))
     }
 }
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "Cookie flags directly encode the existing production and expiry policy."
+)]
 fn cookie(token: &str, production: bool, clear: bool) -> String {
     format!(
         "appshell_admin_session={token}; HttpOnly; Path=/api/admin; SameSite=Strict; Max-Age={}{}",
@@ -29,7 +36,7 @@ fn cookie(token: &str, production: bool, clear: bool) -> String {
     )
 }
 #[utoipa::path(operation_id="admin_login",post,path="/api/admin/login",request_body=Login,responses((status=200,body=AdminAccount)))]
-pub async fn login(
+pub(crate) async fn login(
     State(state): State<AppState>,
     ApiJson(input): ApiJson<Login>,
 ) -> Result<([(axum::http::HeaderName, String); 1], Json<AdminAccount>)> {
@@ -41,7 +48,7 @@ pub async fn login(
     ))
 }
 #[utoipa::path(operation_id="admin_logout",post,path="/api/admin/logout",responses((status=200,body=Message)))]
-pub async fn logout(
+pub(crate) async fn logout(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<([(axum::http::HeaderName, String); 1], Json<Message>)> {
@@ -54,11 +61,11 @@ pub async fn logout(
     Ok(([(SET_COOKIE, cookie("", production, true))], Json(result)))
 }
 #[utoipa::path(operation_id="admin_session",get,path="/api/admin/session",responses((status=200,body=AdminAccount)))]
-pub async fn session(AdminAuth(actor): AdminAuth) -> Json<AdminAccount> {
+pub(crate) async fn session(AdminAuth(actor): AdminAuth) -> Json<AdminAccount> {
     Json(actor)
 }
 #[utoipa::path(operation_id="admin_users",get,path="/api/admin/users",params(("search"=Option<String>,Query),("offset"=Option<i64>,Query)),responses((status=200,body=Vec<ManagedUser>)))]
-pub async fn users(
+pub(crate) async fn users(
     State(state): State<AppState>,
     AdminAuth(actor): AdminAuth,
     Query(input): Query<AdminSearch>,
@@ -66,7 +73,7 @@ pub async fn users(
     Ok(Json(service::users(state, actor, input).await?))
 }
 #[utoipa::path(operation_id="admin_accounts",get,path="/api/admin/accounts",params(("search"=Option<String>,Query),("offset"=Option<i64>,Query)),responses((status=200,body=Vec<AdminAccount>)))]
-pub async fn accounts(
+pub(crate) async fn accounts(
     State(state): State<AppState>,
     AdminAuth(actor): AdminAuth,
     Query(input): Query<AdminSearch>,
@@ -74,7 +81,7 @@ pub async fn accounts(
     Ok(Json(service::accounts(state, actor, input).await?))
 }
 #[utoipa::path(operation_id="admin_create",post,path="/api/admin/accounts",request_body=CreateAdmin,responses((status=200,body=AdminAccount)))]
-pub async fn create(
+pub(crate) async fn create(
     State(state): State<AppState>,
     AdminAuth(actor): AdminAuth,
     ApiJson(input): ApiJson<CreateAdmin>,
@@ -82,7 +89,7 @@ pub async fn create(
     Ok(Json(service::create(state, actor, input).await?))
 }
 #[utoipa::path(operation_id="admin_update",post,path="/api/admin/accounts/{id}",params(("id"=Uuid,Path)),request_body=UpdateAdmin,responses((status=200,body=Message)))]
-pub async fn update(
+pub(crate) async fn update(
     State(state): State<AppState>,
     AdminAuth(actor): AdminAuth,
     Path(id): Path<Uuid>,
@@ -91,7 +98,7 @@ pub async fn update(
     Ok(Json(service::update(state, actor, id, input).await?))
 }
 #[utoipa::path(operation_id="admin_update_user",post,path="/api/admin/users/{id}",params(("id"=Uuid,Path)),request_body=UpdateUser,responses((status=200,body=Message)))]
-pub async fn update_user(
+pub(crate) async fn update_user(
     State(state): State<AppState>,
     AdminAuth(actor): AdminAuth,
     Path(id): Path<Uuid>,
@@ -100,7 +107,7 @@ pub async fn update_user(
     Ok(Json(service::update_user(state, actor, id, input).await?))
 }
 #[utoipa::path(operation_id="admin_reset_user",post,path="/api/admin/users/{id}/reset-password",params(("id"=Uuid,Path)),responses((status=200,body=Message)))]
-pub async fn reset_user(
+pub(crate) async fn reset_user(
     State(state): State<AppState>,
     AdminAuth(actor): AdminAuth,
     Path(id): Path<Uuid>,
@@ -108,7 +115,7 @@ pub async fn reset_user(
     Ok(Json(service::reset_user(state, actor, id).await?))
 }
 #[utoipa::path(operation_id="admin_history",get,path="/api/admin/users/{id}/history",params(("id"=Uuid,Path),("offset"=Option<i64>,Query)),responses((status=200,body=Vec<HistoryEntry>)))]
-pub async fn history(
+pub(crate) async fn history(
     State(state): State<AppState>,
     AdminAuth(actor): AdminAuth,
     Path(id): Path<Uuid>,

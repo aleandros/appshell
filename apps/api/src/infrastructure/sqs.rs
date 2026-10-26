@@ -9,7 +9,7 @@ use aws_sdk_sqs::{Client, types::SendMessageBatchRequestEntry};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Publisher {
     client: Client,
     queue_url: String,
@@ -25,6 +25,8 @@ impl Publisher {
     pub(crate) fn for_test(client: Client, queue_url: String) -> Self {
         Self { client, queue_url }
     }
+    /// # Panics
+    /// Panics if `JOBS_QUEUE_URL` is missing; SQS publication requires a configured queue.
     pub async fn from_env() -> Self {
         let queue_url =
             std::env::var("JOBS_QUEUE_URL").expect("JOBS_QUEUE_URL is required for SQS jobs");
@@ -42,12 +44,20 @@ impl Publisher {
             queue_url,
         }
     }
+    /// # Errors
+    /// Returns an error if pending jobs cannot be read or published to SQS.
+    #[expect(
+        clippy::redundant_closure_for_method_calls,
+        reason = "The closure preserves the higher-ranked transaction lifetime required by the PostgreSQL adapter."
+    )]
     pub async fn publish(&self, state: &AppState) -> Result<()> {
         let pending = repositories::run(state.pool.clone(), |c| c.jobs_dispatch()).await?;
         self.publish_ids(pending.into_iter().map(|row| row.id).collect())
             .await
     }
     /// Stream inserts carry only keys into this adapter; payloads stay in storage.
+    /// # Errors
+    /// Rejects malformed stream records and propagates SQS publication failures.
     pub async fn publish_stream(&self, event: &serde_json::Value) -> Result<()> {
         let ids = stream_job_ids(event)?;
         for batch in ids.chunks(10) {
@@ -116,22 +126,30 @@ fn stream_job_ids(event: &serde_json::Value) -> Result<Vec<Uuid>> {
 }
 
 #[derive(Deserialize)]
+#[expect(
+    missing_debug_implementations,
+    reason = "Raw queue events can contain malformed payloads with secrets."
+)]
 pub struct Event {
     #[serde(rename = "Records")]
     pub records: Vec<Message>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[expect(
+    missing_debug_implementations,
+    reason = "Raw message bodies may contain secrets before validation."
+)]
 pub struct Message {
     pub message_id: String,
     pub body: String,
 }
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
     pub batch_item_failures: Vec<Failure>,
 }
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Failure {
     pub item_identifier: String,

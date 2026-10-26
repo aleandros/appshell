@@ -45,6 +45,8 @@ async fn execute(state: &AppState, row: JobRow) -> Result<()> {
 }
 
 /// One leased job, or false if there is no runnable job. Errors leave retry state.
+/// # Errors
+/// Returns claim, handler, or completion errors, including expired leases.
 pub async fn tick(state: &AppState) -> Result<bool> {
     let row = repositories::run(state.pool.clone(), |c| c.jobs_claim(None)).await?;
     if let Some(row) = row {
@@ -56,6 +58,8 @@ pub async fn tick(state: &AppState) -> Result<bool> {
 
 /// SQS notifications carry only this durable record ID. Busy/not-due/failed jobs
 /// fail their message for later redelivery; completed and deleted jobs are acknowledged.
+/// # Errors
+/// Returns an error for unavailable jobs, handler failures, expired leases, or storage failures.
 pub async fn process(state: &AppState, id: Uuid) -> Result<()> {
     let row = repositories::run(state.pool.clone(), move |c| c.jobs_claim(Some(id))).await?;
     if let Some(row) = row {
@@ -85,7 +89,7 @@ pub async fn worker(state: AppState, mut stop: tokio::sync::watch::Receiver<bool
             tracing::error!(?error, "mail worker failed");
         }
         tokio::select! {
-            _ = tokio::time::sleep(std::time::Duration::from_secs(2)) => {},
+            () = tokio::time::sleep(std::time::Duration::from_secs(2)) => {},
             _ = stop.changed() => {},
         }
     }

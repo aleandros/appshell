@@ -13,6 +13,14 @@ use lambda_http::{
 use serde_json::{Value, json};
 
 #[tokio::main]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep the deployment modes and their invocation-lifetime wiring in the composition root."
+)]
+#[expect(
+    clippy::panic_in_result_fn,
+    reason = "Invalid deployment configuration is fatal before accepting Lambda invocations."
+)]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())

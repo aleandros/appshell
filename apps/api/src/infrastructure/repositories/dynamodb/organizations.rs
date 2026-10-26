@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    ApiError, Key, Result, UnitOfWork, Uuid, Value, active, decode, expires, fresh, id, json, key,
+    now,
+};
 use crate::{
     infrastructure::rows::{self, Count, InviteRecord, TextValue},
     models,
@@ -74,6 +77,10 @@ impl UnitOfWork<'_> {
         self.touch(k)?;
         Ok(1)
     }
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "Keep the same seat-count predicate interface as the PostgreSQL adapter."
+    )]
     pub(crate) fn organizations_reserved_seats(
         &mut self,
         org: Uuid,

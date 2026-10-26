@@ -1,4 +1,4 @@
-//! DynamoDB composition. Tables are provisioned by SAM; local bootstrap is explicit.
+//! `DynamoDB` composition. Tables are provisioned by SAM; local bootstrap is explicit.
 use crate::error::{ApiError, Result};
 use aws_sdk_dynamodb::{
     Client,
@@ -8,11 +8,13 @@ use aws_sdk_dynamodb::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DbPool {
     pub(crate) client: Client,
     pub(crate) table: String,
 }
+/// # Errors
+/// Rejects missing table configuration and production endpoint overrides.
 pub async fn from_env() -> Result<DbPool> {
     let table = std::env::var("DYNAMODB_TABLE")
         .map_err(|_| ApiError::internal("DYNAMODB_TABLE is required"))?;
@@ -38,6 +40,8 @@ pub async fn from_env() -> Result<DbPool> {
         table,
     })
 }
+/// # Errors
+/// Returns an error if table creation, lookup, or key/index schema validation fails.
 pub async fn migrate(pool: DbPool) -> Result<()> {
     let result = pool
         .client
@@ -47,7 +51,7 @@ pub async fn migrate(pool: DbPool) -> Result<()> {
         .await;
     if result.as_ref().err().is_some_and(|e| {
         e.as_service_error()
-            .is_some_and(|e| e.is_resource_not_found_exception())
+            .is_some_and(aws_sdk_dynamodb::operation::describe_table::DescribeTableError::is_resource_not_found_exception)
     }) && std::env::var("DYNAMODB_CREATE_TABLE").as_deref() == Ok("true")
         && std::env::var("APP_ENV").as_deref() != Ok("production")
         && std::env::var("DYNAMODB_ENDPOINT_URL").is_ok()

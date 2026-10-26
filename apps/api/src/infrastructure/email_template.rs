@@ -1,6 +1,7 @@
 //! One table-based, inline-styled template for every transactional email.
 //! Stored HTML and plain text travel together through the outbox and all transports.
 use crate::error::{ApiError, Result};
+use std::fmt::Write;
 
 pub(crate) struct Action<'a> {
     pub label: &'a str,
@@ -25,21 +26,22 @@ pub(crate) fn render(
     action: Option<Action<'_>>,
 ) -> Result<Email> {
     let mut text = format!("{brand}\n\n{title}\n\n{body}");
-    let paragraphs = body
-        .split("\n\n")
-        .map(|p| {
-            format!(
-                "<p style=\"margin:0 0 20px;line-height:1.7\">{}</p>",
-                escape(p).replace('\n', "<br>")
-            )
-        })
-        .collect::<String>();
+    let mut paragraphs = String::new();
+    for paragraph in body.split("\n\n") {
+        write!(
+            paragraphs,
+            "<p style=\"margin:0 0 20px;line-height:1.7\">{}</p>",
+            escape(paragraph).replace('\n', "<br>")
+        )
+        .expect("writing to a String cannot fail");
+    }
     let cta = if let Some(action) = action {
         let url = reqwest::Url::parse(action.url).map_err(ApiError::internal)?;
         if !["http", "https"].contains(&url.scheme()) || url.host_str().is_none() {
             return Err(ApiError::bad("Email actions require an HTTP or HTTPS URL."));
         }
-        text.push_str(&format!("\n\n{}:\n{}", action.label, action.url));
+        write!(text, "\n\n{}:\n{}", action.label, action.url)
+            .expect("writing to a String cannot fail");
         let href = escape(action.url);
         format!(
             r##"<table role="presentation" cellspacing="0" cellpadding="0"><tr><td bgcolor="#147d64" style="border-radius:12px"><a href="{href}" style="display:inline-block;padding:14px 24px;border:1px solid #147d64;border-radius:12px;background:#147d64;color:#ffffff;font-weight:bold;text-decoration:none">{}</a></td></tr></table><p style="margin:24px 0 0;font-size:12px;line-height:1.7;color:#5e6d63">If the button doesn't work, copy this link into your browser:<br><a href="{href}" style="color:#147d64;word-break:break-all">{href}</a></p>"##,
@@ -48,9 +50,11 @@ pub(crate) fn render(
     } else {
         String::new()
     };
-    text.push_str(&format!(
+    write!(
+        text,
         "\n\n{brand} · Space to build.\nThis is an account notification. Please do not reply."
-    ));
+    )
+    .expect("writing to a String cannot fail");
     let brand = escape(brand);
     let title = escape(title);
     let preheader = escape(body.split("\n\n").next().unwrap_or_default());

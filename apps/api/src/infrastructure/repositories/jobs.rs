@@ -57,7 +57,6 @@ impl UnitOfWork<'_> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)] // Disposable integration fixtures fail fast.
     use super::*;
     use crate::{
         AppState,
@@ -94,6 +93,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "The sequential integration scenario shares one disposable schema and verifies the complete job lifecycle."
+    )]
     async fn durable_jobs_are_atomic_leased_retryable_and_idempotent() {
         let url =
             std::env::var("TEST_DATABASE_URL").expect("Set TEST_DATABASE_URL for queue tests");
