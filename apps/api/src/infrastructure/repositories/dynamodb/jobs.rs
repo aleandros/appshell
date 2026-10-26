@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    ApiError, Result, UnitOfWork, Uuid, Value, active, decode, expires, fresh, id, json, key, now,
+    number,
+};
 #[cfg(feature = "lambda")]
 use crate::infrastructure::rows::Id;
 use crate::infrastructure::rows::JobRow;
@@ -7,6 +10,10 @@ fn pending(v: &Value) -> bool {
     active(v) && v["completed_at"].is_null() && v["failed_at"].is_null()
 }
 impl UnitOfWork<'_> {
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "Keep the owned payload interface shared with the PostgreSQL adapter."
+    )]
     pub(crate) fn jobs_enqueue(&mut self, payload: Value, delay: i32) -> Result<Uuid> {
         if !self.in_transaction {
             return Err(ApiError::internal(

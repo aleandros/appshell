@@ -1,5 +1,8 @@
 #![cfg(not(feature = "dynamodb"))]
-#![allow(clippy::unwrap_used)] // Test fixtures fail fast, including helper functions.
+#![expect(
+    clippy::unwrap_used,
+    reason = "Test fixture helpers fail fast on invalid setup."
+)]
 #[derive(diesel::QueryableByName)]
 struct TextValue {
     #[diesel(sql_type=diesel::sql_types::Text)]
@@ -90,6 +93,10 @@ async fn verify(app: &Router, pool: db::DbPool, email: &str) -> String {
 
 // A disposable schema keeps tests isolated from developer data, even when sharing a database.
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "The lifecycle scenario verifies sequential account and tenant transitions against one disposable schema."
+)]
 async fn full_account_and_tenant_lifecycle() {
     let url = std::env::var("TEST_DATABASE_URL")
         .expect("Set TEST_DATABASE_URL to run Postgres integration tests");
@@ -600,6 +607,10 @@ struct OutboxState {
     deferred: bool,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "The scenario verifies administrator changes and their history against the same accounts."
+)]
 async fn admin_and_data_patterns(app: &Router, pool: db::DbPool) {
     use appshell_api::models::CreateAdmin;
     let input = || CreateAdmin {
@@ -753,11 +764,11 @@ async fn admin_and_data_patterns(app: &Router, pool: db::DbPool) {
         401,
         "email correction revokes user sessions"
     );
-    let managed = read(app, "/api/admin/users?search=corrected", &cookie)
+    let managed_users = read(app, "/api/admin/users?search=corrected", &cookie)
         .await
         .1;
     assert!(
-        managed[0]["email_verified_at"].is_null(),
+        managed_users[0]["email_verified_at"].is_null(),
         "corrected emails require verification"
     );
     let verification =

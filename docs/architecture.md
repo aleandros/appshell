@@ -136,9 +136,15 @@ wrapping every hook or component in additional abstractions.
 | `npm run test:mail`          | Real API, outbox, SMTP, and Mailpit delivery of all email types                                                   |
 | `npm run verify`             | Checks, unit/integration tests, app/Storybook builds, browser and local mail tests                                |
 
-Rust workspace lints forbid unsafe code and flag production `unwrap`, `dbg!`,
-`todo!`, and `unimplemented!`. Startup `expect` calls describe fatal configuration
-failures. Test-only unwrap allowances permit concise fixtures. TypeScript retains
+Rust workspace lints adopt [BeautifulRust](https://github.com/morganlinton/BeautifulRust/tree/main/lints)
+(v1.4.0), including Clippy's `all` and `pedantic` groups, and retain the existing
+unsafe-code prohibition and `unimplemented!` lint. CI rejects warnings for both
+PostgreSQL and DynamoDB feature sets. Only `missing_docs` is omitted because both
+crates are internal application code; error and panic documentation remains checked.
+Use narrowly scoped `#[expect(lint, reason = "...")]` attributes for intentional
+exceptions, including sensitive types that must not implement `Debug`. Stale
+expectations fail the lint check. Startup `expect` calls describe fatal configuration
+failures. Test-only unwrap, expect, and print settings permit concise fixtures. TypeScript retains
 `strict`, unchecked-index checks, exact optional properties, and unused-code checks.
 ESLint uses `strictTypeChecked`, exhaustive switch checks, and React Hooks rules.
 

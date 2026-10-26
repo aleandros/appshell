@@ -25,6 +25,10 @@ use tower_http::{
 use utoipa::OpenApi;
 
 #[derive(Clone)]
+#[expect(
+    missing_debug_implementations,
+    reason = "Application state contains credentials and password hashing material."
+)]
 pub struct AppState {
     pub pool: db::DbPool,
     pub config: config::Config,
@@ -32,6 +36,8 @@ pub struct AppState {
     pub dummy_password_hash: Arc<String>,
 }
 impl AppState {
+    /// # Panics
+    /// Panics if the HTTP client or dummy password hash cannot be initialized.
     pub fn new(pool: db::DbPool, config: config::Config) -> Self {
         Self {
             pool,
@@ -49,7 +55,7 @@ impl AppState {
         }
     }
 }
-#[derive(OpenApi)]
+#[derive(Debug, OpenApi)]
 #[openapi(
     paths(
         admin::login,
@@ -87,6 +93,8 @@ impl AppState {
 )]
 pub struct ApiDoc;
 
+/// # Panics
+/// Panics if `APP_URL` cannot be represented as an HTTP origin header.
 pub fn router(state: AppState, static_dir: Option<&str>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(
@@ -163,7 +171,7 @@ pub fn router(state: AppState, static_dir: Option<&str>) -> Router {
                         Ok(())
                     })
                     .await
-                    .map(|_| "ready")
+                    .map(|()| "ready")
                 },
             ),
         );
@@ -179,6 +187,8 @@ pub fn router(state: AppState, static_dir: Option<&str>) -> Router {
 }
 
 /// Local provisioning entry point; never exposed as an HTTP route.
+/// # Errors
+/// Rejects invalid credentials or an already provisioned installation and propagates storage errors.
 pub async fn bootstrap_admin(
     pool: db::DbPool,
     input: models::CreateAdmin,

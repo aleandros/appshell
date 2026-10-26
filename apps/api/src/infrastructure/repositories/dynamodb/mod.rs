@@ -4,6 +4,7 @@ use crate::{
     db::DbPool,
     error::{ApiError, Result},
 };
+use aws_sdk_dynamodb::operation::transact_write_items::TransactWriteItemsError;
 use aws_sdk_dynamodb::types::{AttributeValue as A, ConditionCheck, Put, TransactWriteItem};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -246,6 +247,11 @@ impl UnitOfWork<'_> {
         self.actor = (kind.into(), Some(id));
         Ok(())
     }
+    #[expect(
+        clippy::unused_self,
+        clippy::unnecessary_wraps,
+        reason = "Match the fallible PostgreSQL identity generator on the unit of work."
+    )]
     pub(crate) fn generated_id(&mut self) -> Result<Uuid> {
         Ok(Uuid::new_v4())
     }
@@ -263,6 +269,10 @@ impl UnitOfWork<'_> {
         self.clear();
         result
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "The complete conditional transaction and its audit records must be assembled and committed together."
+    )]
     fn commit(&mut self) -> Result<()> {
         if self.writes.is_empty() {
             return Ok(());
@@ -353,7 +363,6 @@ impl UnitOfWork<'_> {
                 "This operation exceeds the storage transaction limit.",
             ));
         }
-        use aws_sdk_dynamodb::operation::transact_write_items::TransactWriteItemsError;
         let token = Uuid::new_v4().to_string();
         for attempt in 0..4 {
             let result = self.runtime.block_on(
@@ -404,6 +413,10 @@ impl UnitOfWork<'_> {
         Err(conflict())
     }
 
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "This private adapter helper selects the primary table or listing index."
+    )]
     fn query(&mut self, pk: &str, prefix: &str, index: bool) -> Result<Vec<(Key, Value)>> {
         let mut start = None;
         let mut result = BTreeMap::new();

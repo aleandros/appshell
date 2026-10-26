@@ -1,5 +1,8 @@
 #![cfg(not(feature = "dynamodb"))]
-#![allow(clippy::unwrap_used)] // Test fixtures fail fast, including helper functions.
+#![expect(
+    clippy::unwrap_used,
+    reason = "Test fixture helpers fail fast on invalid setup."
+)]
 //! Executable dependency rules. These inspect Rust syntax, including macro tokens;
 //! comments and string literals cannot produce matches or hide qualified imports.
 use proc_macro2::{TokenStream, TokenTree};
@@ -78,6 +81,10 @@ impl<'ast> Visit<'ast> for Boundary<'_> {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep the syntax boundary rules together so their coverage can be audited as one visitor."
+)]
 fn violations(path: &str, source: &str, repository_methods: &BTreeSet<String>) -> Vec<String> {
     let syntax = syn::parse_file(source).expect("valid Rust source");
     let mut names = BTreeSet::new();
@@ -249,13 +256,13 @@ fn production_dependencies_respect_layers_and_contexts() {
 #[test]
 fn rules_reject_bypasses_and_allow_literals() {
     let methods = BTreeSet::from(["billing_subscription".into()]);
-    assert!(
-        !violations(
+    assert_ne!(
+        violations(
             "contexts/identity/service.rs",
             "fn f() { UnitOfWork::billing_subscription(c, org); }",
             &methods
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 
     for (path, source) in [
@@ -303,20 +310,20 @@ fn rules_reject_bypasses_and_allow_literals() {
             "accepted {path}: {source}"
         );
     }
-    assert!(
+    assert_eq!(
         violations(
             "domain/rule.rs",
             "// diesel::sql_query\nfn message() -> &'static str { \"std::fs\" }",
             &methods
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
-    assert!(
+    assert_eq!(
         violations(
             "http/valid.rs",
             "use crate::contexts::identity as service;",
             &methods
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 }

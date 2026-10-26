@@ -6,17 +6,21 @@ use crate::{
     error::{ApiError, Result},
     infrastructure::crypto,
     mail,
-    models::*,
+    models::{InviteInput, Message, NameInput, Organization, Team, TokenInput, User},
 };
 use uuid::Uuid;
 
-pub fn seat_limit(c: &mut UnitOfWork<'_>, org: Uuid) -> Result<i64> {
+pub(crate) fn seat_limit(c: &mut UnitOfWork<'_>, org: Uuid) -> Result<i64> {
     crate::contexts::billing::seat_limit(c, org)
 }
-pub fn lock_org(c: &mut UnitOfWork<'_>, org: Uuid) -> Result<()> {
+pub(crate) fn lock_org(c: &mut UnitOfWork<'_>, org: Uuid) -> Result<()> {
     c.organizations_lock(org)?;
     Ok(())
 }
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "This local helper forwards the pending-seat predicate to the shared repository interface."
+)]
 fn check_seats(c: &mut UnitOfWork<'_>, org: Uuid, include_pending: bool) -> Result<()> {
     let used = c.organizations_reserved_seats(org, include_pending)?.count;
     Ok(appshell_domain::organizations::seats_available(
@@ -24,7 +28,7 @@ fn check_seats(c: &mut UnitOfWork<'_>, org: Uuid, include_pending: bool) -> Resu
         seat_limit(c, org)?,
     )?)
 }
-pub async fn create(state: AppState, user: User, input: NameInput) -> Result<Organization> {
+pub(crate) async fn create(state: AppState, user: User, input: NameInput) -> Result<Organization> {
     security::verified(&user)?;
     let name = appshell_domain::identity::name(&input.name)?;
     repositories::run(state.pool, move |c| {
@@ -36,7 +40,7 @@ pub async fn create(state: AppState, user: User, input: NameInput) -> Result<Org
     })
     .await
 }
-pub async fn team(state: AppState, user: User, org: Uuid) -> Result<Team> {
+pub(crate) async fn team(state: AppState, user: User, org: Uuid) -> Result<Team> {
     security::verified(&user)?;
     repositories::run(state.pool, move |c| {
         let role = crate::contexts::organizations::role(c, user.id, org)?;
@@ -53,7 +57,12 @@ pub async fn team(state: AppState, user: User, org: Uuid) -> Result<Team> {
     })
     .await
 }
-pub async fn invite(state: AppState, user: User, org: Uuid, input: InviteInput) -> Result<Message> {
+pub(crate) async fn invite(
+    state: AppState,
+    user: User,
+    org: Uuid,
+    input: InviteInput,
+) -> Result<Message> {
     security::verified(&user)?;
     let email = appshell_domain::identity::email(&input.email)?;
     appshell_domain::organizations::invitation_role(&input.role)?;
@@ -79,7 +88,7 @@ pub async fn invite(state: AppState, user: User, org: Uuid, input: InviteInput) 
     ))
 }
 
-pub async fn accept(state: AppState, user: User, input: TokenInput) -> Result<Message> {
+pub(crate) async fn accept(state: AppState, user: User, input: TokenInput) -> Result<Message> {
     security::verified(&user)?;
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
@@ -110,7 +119,12 @@ pub async fn accept(state: AppState, user: User, input: TokenInput) -> Result<Me
         "Invitation accepted. Switch to your new workspace.",
     ))
 }
-pub async fn revoke_invite(state: AppState, user: User, org: Uuid, id: Uuid) -> Result<Message> {
+pub(crate) async fn revoke_invite(
+    state: AppState,
+    user: User,
+    org: Uuid,
+    id: Uuid,
+) -> Result<Message> {
     security::verified(&user)?;
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
@@ -124,7 +138,12 @@ pub async fn revoke_invite(state: AppState, user: User, org: Uuid, id: Uuid) -> 
     .await?;
     Ok(crate::models::message("Invitation revoked."))
 }
-pub async fn remove_member(state: AppState, user: User, org: Uuid, id: Uuid) -> Result<Message> {
+pub(crate) async fn remove_member(
+    state: AppState,
+    user: User,
+    org: Uuid,
+    id: Uuid,
+) -> Result<Message> {
     security::verified(&user)?;
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {

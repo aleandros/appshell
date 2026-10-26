@@ -1,5 +1,7 @@
 use crate::{Result, RuleError};
 use validator::ValidateEmail;
+/// # Errors
+/// Rejects malformed addresses and addresses longer than 254 bytes.
 pub fn email(value: &str) -> Result<String> {
     let value = value.trim().to_lowercase();
     if value.len() > 254 || !value.validate_email() {
@@ -7,6 +9,8 @@ pub fn email(value: &str) -> Result<String> {
     }
     Ok(value)
 }
+/// # Errors
+/// Rejects names that are empty after trimming or longer than 80 characters.
 pub fn name(value: &str) -> Result<String> {
     let value = value.trim();
     if value.is_empty() || value.chars().count() > 80 {
@@ -16,6 +20,8 @@ pub fn name(value: &str) -> Result<String> {
     }
     Ok(value.into())
 }
+/// # Errors
+/// Rejects passwords shorter than 12 characters or longer than 128 bytes.
 pub fn password(value: &str) -> Result<()> {
     if value.chars().count() < 12 || value.len() > 128 {
         return Err(RuleError::Invalid(
@@ -25,18 +31,28 @@ pub fn password(value: &str) -> Result<()> {
     Ok(())
 }
 
+/// # Errors
+/// Returns `RuleError::EmailUnverified` when the email has not been verified.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "Verification is a persisted boolean fact, not a behavior switch."
+)]
 pub fn verified(is_verified: bool) -> Result<()> {
     if !is_verified {
         return Err(RuleError::EmailUnverified);
     }
     Ok(())
 }
+/// # Errors
+/// Returns `RuleError::RateLimited` when hits exceed the limit.
 pub fn rate_limit(hits: i64, limit: i32) -> Result<()> {
     if hits > i64::from(limit) {
         return Err(RuleError::RateLimited);
     }
     Ok(())
 }
+/// # Errors
+/// Rejects tokens whose length differs from the 64-byte token format.
 pub fn action_token(token: &str) -> Result<()> {
     if token.len() != 64 {
         return Err(RuleError::Invalid("This link is invalid or has expired."));

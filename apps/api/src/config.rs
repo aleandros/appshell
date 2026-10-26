@@ -19,6 +19,10 @@ impl JobBackend {
 }
 
 #[derive(Clone)]
+#[expect(
+    missing_debug_implementations,
+    reason = "Configuration contains provider keys and webhook secrets."
+)]
 pub struct Config {
     pub job_backend: JobBackend,
     pub app_url: String,
@@ -34,6 +38,9 @@ pub struct Config {
     pub stripe_webhook_secret: Option<String>,
 }
 impl Config {
+    /// # Panics
+    /// Panics for invalid deployment settings, unsupported mail/job modes, missing Resend
+    /// credentials, insecure production URLs, or an invalid SMTP port.
     pub fn from_env() -> Self {
         let production = std::env::var("APP_ENV").as_deref() == Ok("production");
         let app_url = std::env::var("APP_URL")

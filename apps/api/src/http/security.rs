@@ -10,7 +10,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-pub fn session_token(headers: &HeaderMap) -> Option<String> {
+pub(crate) fn session_token(headers: &HeaderMap) -> Option<String> {
     named_token(headers, "appshell_session")
 }
 pub(crate) fn named_token(headers: &HeaderMap, name: &str) -> Option<String> {
@@ -24,14 +24,22 @@ pub(crate) fn named_token(headers: &HeaderMap, name: &str) -> Option<String> {
             (key == name && value.len() == 64).then(|| value.to_owned())
         })
 }
-pub fn cookie(value: &str, production: bool, clear: bool) -> String {
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "Cookie flags directly encode the existing production and expiry policy."
+)]
+pub(crate) fn cookie(value: &str, production: bool, clear: bool) -> String {
     format!(
         "appshell_session={value}; HttpOnly; Path=/; SameSite=Lax; Max-Age={}{}",
         if clear { 0 } else { 60 * 60 * 24 * 14 },
         if production { "; Secure" } else { "" }
     )
 }
-pub async fn guard(State(state): State<AppState>, req: Request, next: Next) -> Result<Response> {
+pub(crate) async fn guard(
+    State(state): State<AppState>,
+    req: Request,
+    next: Next,
+) -> Result<Response> {
     let unsafe_method = !matches!(
         *req.method(),
         axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS
@@ -67,7 +75,7 @@ pub async fn guard(State(state): State<AppState>, req: Request, next: Next) -> R
     );
     Ok(response)
 }
-pub struct Auth(pub User);
+pub(crate) struct Auth(pub User);
 impl FromRequestParts<AppState> for Auth {
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self> {

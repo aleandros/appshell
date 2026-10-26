@@ -1,6 +1,6 @@
 use super::UnitOfWork;
 use crate::error::Result;
-use crate::infrastructure::rows::*;
+use crate::infrastructure::rows::{Id, Mail};
 use diesel::{
     prelude::*,
     sql_query,

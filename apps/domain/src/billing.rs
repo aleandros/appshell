@@ -6,6 +6,8 @@ pub fn seat_limit(plan: &str, status: &str) -> i64 {
         3
     }
 }
+/// # Errors
+/// Rejects checkout when an existing Pro subscription must be managed in the portal.
 pub fn allow_checkout(plan: &str, status: &str) -> Result<()> {
     if plan == "pro" && !["canceled", "incomplete_expired"].contains(&status) {
         return Err(RuleError::Invalid(

@@ -3,7 +3,10 @@ use crate::{
     contexts::identity,
     error::{ApiError, Result},
     infrastructure::{crypto, repositories},
-    models::*,
+    models::{
+        AdminAccount, AdminSearch, CreateAdmin, HistoryEntry, Login, ManagedUser, Message,
+        UpdateAdmin, UpdateUser, message,
+    },
 };
 use uuid::Uuid;
 
@@ -166,7 +169,7 @@ pub(crate) async fn update_user(
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
             c.admin_require_actor(actor.id)?;
-            identity::manage_user(c, id, input, &state.config)
+            identity::manage_user(c, id, &input, &state.config)
         })
     })
     .await?;

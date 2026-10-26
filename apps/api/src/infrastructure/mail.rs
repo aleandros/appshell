@@ -223,6 +223,12 @@ pub(crate) async fn deliver_queued(state: &AppState, id: Uuid) -> Result<()> {
     Ok(())
 }
 
+/// # Errors
+/// Propagates claim and completion persistence errors. Delivery failures are logged for retry.
+#[expect(
+    clippy::redundant_closure_for_method_calls,
+    reason = "The closure preserves the higher-ranked transaction lifetime required by the PostgreSQL adapter."
+)]
 pub async fn tick(state: &AppState) -> Result<()> {
     let mails = repositories::run(state.pool.clone(), |c| c.mail_claim()).await?;
     for mail in mails {
@@ -236,7 +242,7 @@ pub async fn tick(state: &AppState) -> Result<()> {
                 .await?;
             }
             Err(error) => {
-                tracing::warn!(mail_id=%mail.id, ?error,"mail queued for retry; check provider configuration")
+                tracing::warn!(mail_id=%mail.id, ?error,"mail queued for retry; check provider configuration");
             }
         }
     }

@@ -5,7 +5,7 @@ use crate::{
 };
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
-pub fn verify_signature(header: &str, body: &[u8], secret: &str, now: i64) -> Result<()> {
+pub(crate) fn verify_signature(header: &str, body: &[u8], secret: &str, now: i64) -> Result<()> {
     let timestamp = header
         .split(',')
         .find_map(|p| p.strip_prefix("t="))

@@ -7,7 +7,7 @@ use diesel::{
 use uuid::Uuid;
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
-pub struct Mail {
+pub(crate) struct Mail {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = SqlUuid))]
     pub id: Uuid,
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = Text))]
@@ -21,7 +21,7 @@ pub struct Mail {
 }
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
-pub struct CheckoutAttempt {
+pub(crate) struct CheckoutAttempt {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = Text))]
     pub request_key: String,
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = diesel::sql_types::Jsonb))]
@@ -29,7 +29,7 @@ pub struct CheckoutAttempt {
 }
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
-pub struct InviteRecord {
+pub(crate) struct InviteRecord {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type=SqlUuid))]
     pub organization_id: Uuid,
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type=Text))]
@@ -39,7 +39,7 @@ pub struct InviteRecord {
 }
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
-pub struct Credentials {
+pub(crate) struct Credentials {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type=SqlUuid))]
     pub id: Uuid,
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type=Nullable<Text>))]
@@ -47,13 +47,13 @@ pub struct Credentials {
 }
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
-pub struct Action {
+pub(crate) struct Action {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type=SqlUuid))]
     pub user_id: Uuid,
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type=Nullable<Text>))]
     pub payload: Option<String>,
 }
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct User {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = diesel::sql_types::Uuid))]
@@ -76,7 +76,7 @@ impl From<User> for crate::models::User {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct Organization {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = diesel::sql_types::Uuid))]
@@ -96,7 +96,7 @@ impl From<Organization> for crate::models::Organization {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct Member {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = diesel::sql_types::Uuid))]
@@ -119,7 +119,7 @@ impl From<Member> for crate::models::Member {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct Invitation {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = diesel::sql_types::Uuid))]
@@ -142,7 +142,7 @@ impl From<Invitation> for crate::models::Invitation {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct Subscription {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = Text))]
@@ -164,13 +164,13 @@ impl From<Subscription> for crate::models::Subscription {
 
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
-pub struct Count {
+pub(crate) struct Count {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = BigInt))]
     pub count: i64,
 }
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
-pub struct TextValue {
+pub(crate) struct TextValue {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = Text))]
     pub value: String,
 }
@@ -178,12 +178,12 @@ pub struct TextValue {
 #[derive(serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 #[cfg(any(not(feature = "dynamodb"), feature = "lambda"))]
-pub struct Id {
+pub(crate) struct Id {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = SqlUuid))]
     pub id: Uuid,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct AdminAccount {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = SqlUuid))]
@@ -208,7 +208,7 @@ impl From<AdminAccount> for crate::models::AdminAccount {
         }
     }
 }
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct ManagedUser {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = SqlUuid))]
@@ -236,7 +236,7 @@ impl From<ManagedUser> for crate::models::ManagedUser {
         }
     }
 }
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[cfg_attr(not(feature = "dynamodb"), derive(QueryableByName))]
 pub struct HistoryEntry {
     #[cfg_attr(not(feature = "dynamodb"), diesel(sql_type = SqlUuid))]

@@ -2,17 +2,17 @@ use crate::error::{ApiError, Result};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use sha2::{Digest, Sha256};
 
-pub fn token() -> String {
+pub(crate) fn token() -> String {
     format!(
         "{}{}",
         uuid::Uuid::new_v4().simple(),
         uuid::Uuid::new_v4().simple()
     )
 }
-pub fn digest(value: &str) -> String {
+pub(crate) fn digest(value: &str) -> String {
     hex::encode(Sha256::digest(value.as_bytes()))
 }
-pub fn hash_password(value: &str) -> Result<String> {
+pub(crate) fn hash_password(value: &str) -> Result<String> {
     appshell_domain::identity::password(value)?;
     Argon2::default()
         .hash_password(
@@ -22,7 +22,7 @@ pub fn hash_password(value: &str) -> Result<String> {
         .map(|v| v.to_string())
         .map_err(ApiError::internal)
 }
-pub fn verify_password(value: &str, hash: &str) -> bool {
+pub(crate) fn verify_password(value: &str, hash: &str) -> bool {
     value.len() <= 128
         && PasswordHash::new(hash).is_ok_and(|hash| {
             Argon2::default()

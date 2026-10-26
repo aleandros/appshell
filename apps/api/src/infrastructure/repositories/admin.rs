@@ -1,7 +1,7 @@
 use super::UnitOfWork;
 use crate::{
     error::{ApiError, Result},
-    infrastructure::rows::*,
+    infrastructure::rows::{AdminAccount, Count, Credentials, Id},
     models,
 };
 use diesel::{

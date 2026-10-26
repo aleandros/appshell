@@ -1,6 +1,8 @@
 use super::UnitOfWork;
 use crate::error::Result;
-use crate::infrastructure::rows::*;
+use crate::infrastructure::rows::{
+    Count, Id, Invitation, InviteRecord, Member, Organization, TextValue,
+};
 use diesel::{
     prelude::*,
     sql_query,
@@ -66,6 +68,10 @@ impl UnitOfWork<'_> {
                 .execute(self.connection)?,
         )
     }
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "The persistence query binds the include-pending predicate directly as a SQL boolean."
+    )]
     pub(crate) fn organizations_reserved_seats(
         &mut self,
         organization_id: Uuid,

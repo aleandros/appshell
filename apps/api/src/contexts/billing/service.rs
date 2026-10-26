@@ -5,11 +5,11 @@ use crate::{
     contexts::identity as security,
     error::{ApiError, Result},
     infrastructure::stripe,
-    models::*,
+    models::{Billing, Message, RedirectUrl, User},
 };
 use uuid::Uuid;
 
-pub async fn billing(state: AppState, user: User, org: Uuid) -> Result<Billing> {
+pub(crate) async fn billing(state: AppState, user: User, org: Uuid) -> Result<Billing> {
     security::verified(&user)?;
     let enabled = state.config.billing_enabled();
     repositories::run(state.pool, move |c| {
@@ -25,7 +25,7 @@ pub async fn billing(state: AppState, user: User, org: Uuid) -> Result<Billing> 
     })
     .await
 }
-pub async fn checkout(state: AppState, user: User, org: Uuid) -> Result<RedirectUrl> {
+pub(crate) async fn checkout(state: AppState, user: User, org: Uuid) -> Result<RedirectUrl> {
     security::verified(&user)?;
     if !state.config.billing_enabled() {
         return Err(ApiError::bad(
@@ -80,7 +80,7 @@ pub async fn checkout(state: AppState, user: User, org: Uuid) -> Result<Redirect
     stripe::checkout(&state, attempt).await
 }
 
-pub async fn portal(state: AppState, user: User, org: Uuid) -> Result<RedirectUrl> {
+pub(crate) async fn portal(state: AppState, user: User, org: Uuid) -> Result<RedirectUrl> {
     security::verified(&user)?;
     if !state.config.billing_enabled() {
         return Err(ApiError::bad("Billing hasn't been configured."));
@@ -93,7 +93,11 @@ pub async fn portal(state: AppState, user: User, org: Uuid) -> Result<RedirectUr
     stripe::portal(&state, customer).await
 }
 
-pub async fn webhook(state: AppState, signature: String, body: Vec<u8>) -> Result<Message> {
+#[expect(
+    clippy::redundant_closure_for_method_calls,
+    reason = "The closure preserves the higher-ranked transaction lifetime required by the PostgreSQL adapter."
+)]
+pub(crate) async fn webhook(state: AppState, signature: String, body: Vec<u8>) -> Result<Message> {
     let secret = state
         .config
         .stripe_webhook_secret

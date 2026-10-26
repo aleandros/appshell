@@ -7,11 +7,14 @@ use crate::{
     error::{ApiError, Result},
     infrastructure::crypto,
     mail,
-    models::*,
+    models::{
+        ChangeEmail, ChangePassword, EmailInput, HistoryEntry, Login, ManagedUser, Message,
+        ResetPassword, Session, Signup, TokenInput, UpdateUser, User,
+    },
 };
 use uuid::Uuid;
 
-pub fn session(c: &mut UnitOfWork<'_>, user: User) -> Result<Session> {
+pub(crate) fn session(c: &mut UnitOfWork<'_>, user: User) -> Result<Session> {
     let organizations = crate::contexts::organizations::for_user(c, user.id)?;
     Ok(Session {
         user,
@@ -23,7 +26,7 @@ fn new_session(c: &mut UnitOfWork<'_>, id: Uuid, token: &str) -> Result<()> {
     Ok(())
 }
 use crate::models::message;
-pub async fn signup(state: AppState, input: Signup) -> Result<(String, Session)> {
+pub(crate) async fn signup(state: AppState, input: Signup) -> Result<(String, Session)> {
     let email = appshell_domain::identity::email(&input.email)?;
     let name = appshell_domain::identity::name(&input.name)?;
     let organization = appshell_domain::identity::name(&input.organization)?;
@@ -55,7 +58,7 @@ fn check_password(c: &mut UnitOfWork<'_>, id: Uuid, password: &str) -> Result<()
     }
     Ok(())
 }
-pub async fn login(state: AppState, input: Login) -> Result<(String, Session)> {
+pub(crate) async fn login(state: AppState, input: Login) -> Result<(String, Session)> {
     let email = appshell_domain::identity::email(&input.email)?;
     if input.password.len() > 128 {
         return Err(ApiError::unauthorized());
@@ -89,10 +92,10 @@ pub async fn login(state: AppState, input: Login) -> Result<(String, Session)> {
     .await?;
     Ok((token, result))
 }
-pub async fn me(state: AppState, user: User) -> Result<Session> {
+pub(crate) async fn me(state: AppState, user: User) -> Result<Session> {
     repositories::run(state.pool, move |c| session(c, user)).await
 }
-pub async fn logout(state: AppState, token: Option<String>) -> Result<(String, Message)> {
+pub(crate) async fn logout(state: AppState, token: Option<String>) -> Result<(String, Message)> {
     if let Some(token) = token {
         repositories::run(state.pool, move |c| {
             c.transaction(|c| {
@@ -108,7 +111,7 @@ pub async fn logout(state: AppState, token: Option<String>) -> Result<(String, M
     }
     Ok((String::new(), message("Signed out.")))
 }
-pub async fn forgot(state: AppState, input: EmailInput) -> Result<Message> {
+pub(crate) async fn forgot(state: AppState, input: EmailInput) -> Result<Message> {
     let email = appshell_domain::identity::email(&input.email)?;
     repositories::run(state.pool, move |c| {
         security::rate_limit(c, &format!("forgot:{email}"), 5)?;
@@ -129,7 +132,7 @@ fn consume(c: &mut UnitOfWork<'_>, token: &str, purpose: &str) -> Result<Action>
     c.identity_consume_action(crypto::digest(token), purpose)?
         .ok_or_else(|| ApiError::bad("This link is invalid or has expired."))
 }
-pub async fn reset(state: AppState, input: ResetPassword) -> Result<Message> {
+pub(crate) async fn reset(state: AppState, input: ResetPassword) -> Result<Message> {
     appshell_domain::identity::password(&input.password)?;
     repositories::run(state.pool, move |c| {
         security::rate_limit(c, "reset:global", 100)?;
@@ -144,7 +147,7 @@ pub async fn reset(state: AppState, input: ResetPassword) -> Result<Message> {
     .await?;
     Ok(message("Password updated. Sign in with your new password."))
 }
-pub async fn verify(state: AppState, input: TokenInput) -> Result<Message> {
+pub(crate) async fn verify(state: AppState, input: TokenInput) -> Result<Message> {
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
             let action = consume(c, &input.token, "verify")?;
@@ -155,7 +158,7 @@ pub async fn verify(state: AppState, input: TokenInput) -> Result<Message> {
     .await?;
     Ok(message("Email verified. Your workspace is ready."))
 }
-pub async fn resend(state: AppState, user: User) -> Result<Message> {
+pub(crate) async fn resend(state: AppState, user: User) -> Result<Message> {
     repositories::run(state.pool, move |c| {
         security::rate_limit(c, &format!("verify:{}", user.id), 5)?;
         if user.email_verified_at.is_none() {
@@ -174,7 +177,7 @@ fn revoke(c: &mut UnitOfWork<'_>, id: Uuid) -> Result<()> {
     c.identity_revoke_actions(id)?;
     Ok(())
 }
-pub async fn change_password(
+pub(crate) async fn change_password(
     state: AppState,
     user: User,
     input: ChangePassword,
@@ -194,7 +197,11 @@ pub async fn change_password(
     .await?;
     Ok(message("Password changed. Sign in again on your devices."))
 }
-pub async fn change_email(state: AppState, user: User, input: ChangeEmail) -> Result<Message> {
+pub(crate) async fn change_email(
+    state: AppState,
+    user: User,
+    input: ChangeEmail,
+) -> Result<Message> {
     security::verified(&user)?;
     let email = appshell_domain::identity::email(&input.email)?;
     repositories::run(state.pool, move |c| {
@@ -209,7 +216,7 @@ pub async fn change_email(state: AppState, user: User, input: ChangeEmail) -> Re
     .await?;
     Ok(message("Confirm the link sent to your new email address."))
 }
-pub async fn confirm_email(state: AppState, input: TokenInput) -> Result<Message> {
+pub(crate) async fn confirm_email(state: AppState, input: TokenInput) -> Result<Message> {
     repositories::run(state.pool, move |c| {
         c.transaction(|c| {
             let action = consume(c, &input.token, "email")?;
@@ -244,7 +251,7 @@ pub(crate) fn managed_history(
 pub(crate) fn manage_user(
     c: &mut UnitOfWork<'_>,
     id: Uuid,
-    input: UpdateUser,
+    input: &UpdateUser,
     config: &crate::config::Config,
 ) -> Result<()> {
     let email = appshell_domain::identity::email(&input.email)?;

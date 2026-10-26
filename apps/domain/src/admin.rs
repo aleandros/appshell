@@ -1,5 +1,7 @@
 use crate::RuleError;
 
+/// # Errors
+/// Returns an invalid-input error unless the status is active, suspended, or deleted.
 pub fn status(value: &str) -> Result<(), RuleError> {
     if matches!(value, "active" | "suspended" | "deleted") {
         Ok(())
@@ -7,6 +9,12 @@ pub fn status(value: &str) -> Result<(), RuleError> {
         Err(RuleError::Invalid("Choose active, suspended, or deleted."))
     }
 }
+/// # Errors
+/// Rejects unknown statuses and changes that would suspend or delete the acting administrator.
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "The domain receives the caller-computed identity comparison as a fact."
+)]
 pub fn allow_admin_change(is_self: bool, status: &str) -> Result<(), RuleError> {
     self::status(status)?;
     if is_self && status != "active" {
