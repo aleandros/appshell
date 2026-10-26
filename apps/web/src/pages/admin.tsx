@@ -172,7 +172,11 @@ function UserEditor({ user }: { user: ManagedUser }) {
             {t('Send password reset')}
           </Button>
           {reset.isError && <ErrorState error={reset.error} />}
-          {reset.isSuccess && <Notice kind="success">{t('Password reset sent.')}</Notice>}
+          {reset.isSuccess && (
+            <Notice kind="success">
+              {t('Sessions revoked and a password reset email queued.')}
+            </Notice>
+          )}
         </div>
       </Card>
       <Card className="p-6">
